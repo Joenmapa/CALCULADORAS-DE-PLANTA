@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<!-- saved from url=(0059)file:///C:/Users/abd36/Downloads/calculadoras_planta_3.html -->
+<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadoras de Planta</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  .container { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 13px; color: #73726c; margin-bottom: 2rem; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  .tab { padding: 8px 20px; border: 0.5px solid #b4b2a9; border-radius: 8px; background: transparent; font-size: 14px; cursor: pointer; color: #5f5e5a; transition: all 0.15s; }
+  .tab.active { background: #1a1a18; color: #fff; border-color: #1a1a18; }
+  .tab:hover:not(.active) { background: #f1efe8; }
+  .panel { display: none; background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 1.5rem; }
+  .panel.active { display: block; }
+  .panel-title { font-size: 15px; font-weight: 500; margin-bottom: 1.25rem; }
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
+  .slider-row label { font-size: 13px; color: #73726c; min-width: 210px; }
+  .slider-row input[type=range] { flex: 1; accent-color: #1a1a18; }
+  .slider-val { font-size: 13px; font-weight: 500; min-width: 80px; text-align: right; }
+  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 1.25rem 0; }
+  .metric { background: #f5f5f3; border-radius: 8px; padding: 1rem; }
+  .metric .ml { font-size: 12px; color: #73726c; margin-bottom: 4px; }
+  .metric .mv { font-size: 22px; font-weight: 500; }
+  .metric .mu { font-size: 12px; color: #73726c; }
+  .divider { border: none; border-top: 0.5px solid #d3d1c7; margin: 1.25rem 0; }
+  .table-wrap { overflow-x: auto; margin-top: 1.25rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  th { font-size: 12px; font-weight: 500; color: #73726c; text-align: center; padding: 8px 6px; border-bottom: 1px solid #d3d1c7; }
+  td { text-align: center; padding: 7px 6px; border-bottom: 0.5px solid #f1efe8; }
+  tr.highlight td { background: #e6f1fb; color: #0c447c; font-weight: 500; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; }
+  .badge-ok { background: #eaf3de; color: #3b6d11; }
+  .badge-lo { background: #faeeda; color: #854f0b; }
+  .badge-hi { background: #fcebeb; color: #a32d2d; }
+  .note { font-size: 12px; color: #73726c; border-left: 2px solid #d3d1c7; padding-left: 10px; margin-top: 1rem; line-height: 1.6; }
+  @media (max-width: 600px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .slider-row { flex-wrap: wrap; }
+    .slider-row label { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Calculadoras de planta</h1>
+  <p class="subtitle">Herramientas para formulación y tratamiento de efluentes</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(&#39;brix&#39;, this)">Brix vs % jugo</button>
+    <button class="tab" onclick="switchTab(&#39;co2&#39;, this)">Neutralización CO₂</button>
+  </div>
+
+  <div class="panel active" id="panel-brix">
+    <p class="panel-title">Brix final vs % de jugo — concentrado de manzana</p>
+    <div class="slider-row">
+      <label>Brix del concentrado (°Bx)</label>
+      <input type="range" id="brixConc" min="60" max="75" step="0.5" value="71">
+      <span class="slider-val"><span id="brixConcVal">71.0</span> °Bx</span>
+    </div>
+    <div class="slider-row">
+      <label>Azúcar adicional en bebida (°Bx)</label>
+      <input type="range" id="brixSugar" min="0" max="12" step="0.5" value="4">
+      <span class="slider-val"><span id="brixSugarVal">4.0</span> °Bx</span>
+    </div>
+    <div class="slider-row">
+      <label>Brix objetivo de la bebida (°Bx)</label>
+      <input type="range" id="brixTarget" min="10" max="16" step="0.5" value="12">
+      <span class="slider-val"><span id="brixTargetVal">12.0</span> °Bx</span>
+    </div>
+    <hr class="divider">
+    <div class="metrics">
+      <div class="metric">
+        <div class="ml">% jugo en fórmula</div>
+        <div class="mv" id="pctJuice">11.3%</div>
+        <div class="mu">calculado</div>
+      </div>
+      <div class="metric">
+        <div class="ml">Aporte del jugo</div>
+        <div class="mv" id="juiceContrib">8.0</div>
+        <div class="mu">°Bx</div>
+      </div>
+      <div class="metric">
+        <div class="ml">Dilución</div>
+        <div class="mv" id="dilution">7.9</div>
+        <div class="mu">partes agua : 1 conc.</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>% jugo</th><th>Aporte jugo (°Bx)</th><th>+ azúcar (°Bx)</th>
+            <th>Brix final (°Bx)</th><th>Categoría Codex</th><th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="brixTableBody"><tr><td>15%</td><td>10.7</td><td>4.0</td><td>14.7</td><td>Bebida de jugo</td><td><span class="badge badge-ok">ok</span></td></tr><tr><td>16%</td><td>11.4</td><td>4.0</td><td>15.4</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>17%</td><td>12.1</td><td>4.0</td><td>16.1</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>18%</td><td>12.8</td><td>4.0</td><td>16.8</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>19%</td><td>13.5</td><td>4.0</td><td>17.5</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>20%</td><td>14.2</td><td>4.0</td><td>18.2</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>21%</td><td>14.9</td><td>4.0</td><td>18.9</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>22%</td><td>15.6</td><td>4.0</td><td>19.6</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>23%</td><td>16.3</td><td>4.0</td><td>20.3</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>24%</td><td>17.0</td><td>4.0</td><td>21.0</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>25%</td><td>17.8</td><td>4.0</td><td>21.8</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>26%</td><td>18.5</td><td>4.0</td><td>22.5</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>27%</td><td>19.2</td><td>4.0</td><td>23.2</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>28%</td><td>19.9</td><td>4.0</td><td>23.9</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>29%</td><td>20.6</td><td>4.0</td><td>24.6</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>30%</td><td>21.3</td><td>4.0</td><td>25.3</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-co2">
+    <p class="panel-title">Consumo de CO₂ para neutralización de pH de efluentes</p>
+    <div class="slider-row">
+      <label>Caudal (gal/día)</label>
+      <input type="range" id="flow" min="5000" max="100000" step="1000" value="27000">
+      <span class="slider-val"><span id="flowVal">27,000</span></span>
+    </div>
+    <div class="slider-row">
+      <label>pH inicial</label>
+      <input type="range" id="phIn" min="7.5" max="12" step="0.1" value="9">
+      <span class="slider-val"><span id="phInVal">9.0</span></span>
+    </div>
+    <div class="slider-row">
+      <label>pH objetivo</label>
+      <input type="range" id="phOut" min="6" max="8" step="0.1" value="7">
+      <span class="slider-val"><span id="phOutVal">7.0</span></span>
+    </div>
+    <div class="slider-row">
+      <label>Alcalinidad (mg/L CaCO₃)</label>
+      <input type="range" id="alk" min="50" max="800" step="10" value="250">
+      <span class="slider-val"><span id="alkVal">250</span> mg/L</span>
+    </div>
+    <div class="slider-row">
+      <label>Eficiencia inyección (%)</label>
+      <input type="range" id="eff" min="50" max="95" step="1" value="75">
+      <span class="slider-val"><span id="effVal">75</span>%</span>
+    </div>
+    <hr class="divider">
+    <div class="metrics">
+      <div class="metric">
+        <div class="ml">CO₂ por día</div>
+        <div class="mv" id="kgDay">30</div>
+        <div class="mu">kg/día</div>
+      </div>
+      <div class="metric">
+        <div class="ml">CO₂ por mes</div>
+        <div class="mv" id="kgMonth">901</div>
+        <div class="mu">kg/mes</div>
+      </div>
+      <div class="metric">
+        <div class="ml">CO₂ por hora</div>
+        <div class="mv" id="kgHour">1.3</div>
+        <div class="mu">kg/hr</div>
+      </div>
+    </div>
+    <div id="rangeNote" class="note">Rango operativo estimado: <strong>24 – 39 kg/día</strong>. La alcalinidad real del efluente es el factor dominante — se recomienda medir alcalinidad total en planta para afinar este cálculo.</div>
+  </div>
+</div>
+
+<script>
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + name).classList.add('active');
+    el.classList.add('active');
+  }
+
+  function getCategory(p) {
+    if (p >= 100) return 'Jugo puro';
+    if (p >= 50) return 'Jugo reconstituido';
+    if (p >= 25) return 'Néctar';
+    if (p >= 6) return 'Bebida de jugo';
+    return 'Agua saborizada';
+  }
+
+  function renderBrix() {
+    const brixConc = parseFloat(document.getElementById('brixConc').value);
+    const brixSugar = parseFloat(document.getElementById('brixSugar').value);
+    const brixTarget = parseFloat(document.getElementById('brixTarget').value);
+    document.getElementById('brixConcVal').textContent = brixConc.toFixed(1);
+    document.getElementById('brixSugarVal').textContent = brixSugar.toFixed(1);
+    document.getElementById('brixTargetVal').textContent = brixTarget.toFixed(1);
+    const pct = ((brixTarget - brixSugar) / brixConc) * 100;
+    const juiceContrib = brixConc * (pct / 100);
+    document.getElementById('pctJuice').textContent = pct > 0 ? pct.toFixed(1) + '%' : '—';
+    document.getElementById('juiceContrib').textContent = pct > 0 ? juiceContrib.toFixed(1) : '—';
+    document.getElementById('dilution').textContent = pct > 0 ? ((100 - pct) / pct).toFixed(1) : '—';
+    const tbody = document.getElementById('brixTableBody');
+    tbody.innerHTML = '';
+    for (let p = 15; p <= 30; p++) {
+      const juiceB = brixConc * (p / 100);
+      const totalB = juiceB + brixSugar;
+      let badge, bc;
+      if (totalB < 10) { badge = 'bajo'; bc = 'badge-lo'; }
+      else if (totalB > 15) { badge = 'alto'; bc = 'badge-hi'; }
+      else { badge = 'ok'; bc = 'badge-ok'; }
+      const tr = document.createElement('tr');
+      if (Math.abs(p - Math.round(pct)) <= 0.5) tr.classList.add('highlight');
+      tr.innerHTML = `<td>${p}%</td><td>${juiceB.toFixed(1)}</td><td>${brixSugar.toFixed(1)}</td><td>${totalB.toFixed(1)}</td><td>${getCategory(p)}</td><td><span class="badge ${bc}">${badge}</span></td>`;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function renderCO2() {
+    const flow = +document.getElementById('flow').value;
+    const phIn = +document.getElementById('phIn').value;
+    const phOut = +document.getElementById('phOut').value;
+    const alk = +document.getElementById('alk').value;
+    const eff = +document.getElementById('eff').value / 100;
+    document.getElementById('flowVal').textContent = flow.toLocaleString();
+    document.getElementById('phInVal').textContent = phIn.toFixed(1);
+    document.getElementById('phOutVal').textContent = phOut.toFixed(1);
+    document.getElementById('alkVal').textContent = alk;
+    document.getElementById('effVal').textContent = Math.round(+document.getElementById('eff').value);
+    const volL = flow * 3.78541;
+    const alkMeqL = alk / 50;
+    const deltaOH = Math.max(0, Math.pow(10, phIn - 14) - Math.pow(10, phOut - 14));
+    const co2_kg = ((alkMeqL * 0.001 + deltaOH) * volL * 44) / 1000 / eff;
+    document.getElementById('kgDay').textContent = co2_kg < 1 ? co2_kg.toFixed(2) : Math.round(co2_kg).toLocaleString();
+    document.getElementById('kgMonth').textContent = Math.round(co2_kg * 30).toLocaleString();
+    document.getElementById('kgHour').textContent = (co2_kg / 24).toFixed(1);
+    const lo = Math.round(co2_kg * 0.8);
+    const hi = Math.round(co2_kg * 1.3);
+    document.getElementById('rangeNote').innerHTML = `Rango operativo estimado: <strong>${lo.toLocaleString()} – ${hi.toLocaleString()} kg/día</strong>. La alcalinidad real del efluente es el factor dominante — se recomienda medir alcalinidad total en planta para afinar este cálculo.`;
+  }
+
+  ['brixConc','brixSugar','brixTarget'].forEach(id => document.getElementById(id).addEventListener('input', renderBrix));
+  ['flow','phIn','phOut','alk','eff'].forEach(id => document.getElementById(id).addEventListener('input', renderCO2));
+  renderBrix();
+  renderCO2();
+</script>
+
+
+</body></html>

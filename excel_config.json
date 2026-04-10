@@ -1,0 +1,40 @@
+{
+  "_comentario": "Edita este archivo con la ruta de tu Excel y los nombres EXACTOS de las columnas/hojas",
+
+  "excel_path": "\\\\servidor\\carpeta\\RecipeDatabase.xlsx",
+
+  "sheets": {
+    "products":      "Productos",
+    "raw_materials": "MateriasPrimas",
+    "recipes":       "Recetas"
+  },
+
+  "columns": {
+    "products": {
+      "_comentario": "Nombres de columna EXACTOS en la hoja Productos",
+      "code":        "Código",
+      "description": "Descripción",
+      "brand":       "Brand",
+      "flavor":      "Sabor",
+      "dissolution": "Disolución",
+      "batch_size":  "Batch (LT)",
+      "line":        "Línea"
+    },
+
+    "raw_materials": {
+      "_comentario": "Nombres de columna EXACTOS en la hoja MateriasPrimas",
+      "code":        "Código",
+      "description": "Descripción",
+      "material":    "Tipo",
+      "unit":        "Unidad",
+      "brix":        "Brix"
+    },
+
+    "recipes": {
+      "_comentario": "Nombres de columna EXACTOS en la hoja Recetas (una fila por ingrediente)",
+      "product_code":    "CódigoProducto",
+      "ingredient_code": "CódigoIngrediente",
+      "quantity":        "Cantidad"
+    }
+  }
+}

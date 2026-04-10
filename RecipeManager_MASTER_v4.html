@@ -782,7 +782,7 @@ function renderList(){
   const list=getFiltered();
   document.getElementById('product-count').textContent=`${list.length} de ${DB.products.length} productos`;
   document.getElementById('product-list').innerHTML=list.map(p=>`
-    <div class="product-item${currentProduct&&currentProduct.code===p.code?' active':''}" onclick="selectProduct('${p.code.replace(/'/g,"\\'")}')">
+    <div class="product-item${currentProduct&&currentProduct.code===(p.code||p.CODE||'')?' active':''}" onclick="selectProduct('${(p.code||p.CODE||'').replace(/'/g,"\\'")}')">
       <div class="pi-code">${p.code}</div>
       <div class="pi-desc">${p.description}</div>
       <div class="pi-meta">${p.brand||''} ${p.flavor?'· '+p.flavor:''} · Dil.${p.dissolution}${p.batch_size?' · '+p.batch_size.toLocaleString()+' LT':''}</div>

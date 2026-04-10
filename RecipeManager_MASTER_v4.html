@@ -1809,8 +1809,20 @@ async function loadFromServer() {
       const items       = await itemsRes.json();
       const rawMaterials = await rawMatsRes.json();
 
-     const itemsArray = Array.isArray(items) ? items : (items.products || items.items || []);
-DB = { products: itemsArray, rawMaterials: [] };
+     const rawItems = Array.isArray(items) ? items : (items.products || items.items || []);
+DB = {
+  products: rawItems.map(p => ({
+    code:        String(p.CODE || p.code || ""),
+    description: String(p.DESCRIPTION || p.description || ""),
+    brand:       String(p.BRAND || p.brand || ""),
+    flavor:      String(p.FLAVOR || p.flavor || p.TYPE || ""),
+    dissolution: p.DISSOLUTION || p.dissolution || p.fc || 1,
+    batch_size:  p.BATCH_SIZE || p.batch_size || 0,
+    line:        String(p.LINE || p.line || ""),
+    ...p
+  })),
+  rawMaterials: []
+};
 
       rmMap = {};
      const rmArray = Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials.rawMaterials || []);

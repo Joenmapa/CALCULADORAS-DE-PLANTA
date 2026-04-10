@@ -1830,7 +1830,8 @@ rmArray.forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
      // Cargar recetas del servidor
 const recipesRes = await fetch(API_URL + '/recipes');
 if (recipesRes.ok) {
-  recipeMap = await recipesRes.json();
+  const recipesData = await recipesRes.json();
+recipeMap = recipesData.recipes || recipesData || {};
 }
 
       renderList();

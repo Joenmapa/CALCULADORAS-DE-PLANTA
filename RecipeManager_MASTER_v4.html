@@ -1809,9 +1809,10 @@ async function loadFromServer() {
       const items       = await itemsRes.json();
       const rawMaterials = await rawMatsRes.json();
 
-      DB = items || [];
+      DB = Array.isArray(items) ? items : (items.products || items.items || []);
       rmMap = {};
-      (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
+     const rmArray = Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials.rawMaterials || []);
+rmArray.forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
       recipeMap = {};
       renderList();
       document.getElementById('loading').style.display = 'none';

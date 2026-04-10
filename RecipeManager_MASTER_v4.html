@@ -1809,7 +1809,9 @@ async function loadFromServer() {
       const items       = await itemsRes.json();
       const rawMaterials = await rawMatsRes.json();
 
-      DB = Array.isArray(items) ? items : (items.products || items.items || []);
+     const itemsArray = Array.isArray(items) ? items : (items.products || items.items || []);
+DB = { products: itemsArray, rawMaterials: [] };
+
       rmMap = {};
      const rmArray = Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials.rawMaterials || []);
 rmArray.forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });

@@ -126,7 +126,35 @@ def get_data():
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         return jsonify({"error": f"Error leyendo Excel: {str(e)}"}), 500
+# ── /api/items ───────────────────────────────────────────────
+@app.route("/api/items")
+def get_items():
+    """Solo los productos/items del Excel."""
+    try:
+        data = read_excel()
+        return jsonify(data["products"])
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": f"Error leyendo Excel: {str(e)}"}), 500
 
+# ── /api/raw-materials ────────────────────────────────────────
+@app.route("/api/raw-materials")
+def get_raw_materials():
+    """Solo las materias primas del Excel."""
+    try:
+        data = read_excel()
+        return jsonify(data["rawMaterials"])
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": f"Error leyendo Excel: {str(e)}"}), 500
+
+# ── /api/status ───────────────────────────────────────────────
+@app.route("/api/status")
+def get_status():
+    """Alias de /api/health para compatibilidad."""
+    return health()
 @app.route("/api/health")
 def health():
     """Endpoint de diagnóstico — abre en el navegador para verificar que el servidor corre."""

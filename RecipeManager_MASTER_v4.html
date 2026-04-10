@@ -1794,18 +1794,28 @@ loadData();
 const API_URL = 'http://10.1.10.73:5000/api';
 
 async function loadFromServer() {
-  try {
-    document.getElementById('loading').style.display = 'flex';
-    const res = await fetch(API_URL + '/data');
-    const data = await res.json();
-    if (data.status !== 'ok') throw new Error('Server error');
-    DB = data.items || [];
-    rmMap = {};
-    (data.rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
-    recipeMap = data.recipes || {};
-    renderList();
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('app').style.display = 'flex';
+ try {
+      document.getElementById('loading').style.display = 'flex';
+
+      // Cargar endpoints separados en paralelo para evitar STATUS_BREAKPOINT
+      const [itemsRes, rawMatsRes] = await Promise.all([
+        fetch(API_URL + '/items'),
+        fetch(API_URL + '/raw-materials')
+      ]);
+
+      if (!itemsRes.ok) throw new Error('/api/items: ' + itemsRes.status);
+      if (!rawMatsRes.ok) throw new Error('/api/raw-materials: ' + rawMatsRes.status);
+
+      const items       = await itemsRes.json();
+      const rawMaterials = await rawMatsRes.json();
+
+      DB = items || [];
+      rmMap = {};
+      (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
+      recipeMap = {};
+      renderList();
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
   } catch(e) {
     document.getElementById('loading').innerHTML = 
       '<p style="color:red;padding:20px">❌ No se pudo conectar al servidor:<br><br>' + e.message + 

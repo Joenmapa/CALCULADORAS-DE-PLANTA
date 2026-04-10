@@ -1827,7 +1827,12 @@ DB = {
       rmMap = {};
      const rmArray = Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials.rawMaterials || []);
 rmArray.forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
-      recipeMap = {};
+     // Cargar recetas del servidor
+const recipesRes = await fetch(API_URL + '/recipes');
+if (recipesRes.ok) {
+  recipeMap = await recipesRes.json();
+}
+
       renderList();
       document.getElementById('loading').style.display = 'none';
       document.getElementById('app').style.display = 'flex';

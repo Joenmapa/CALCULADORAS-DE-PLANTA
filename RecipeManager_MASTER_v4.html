@@ -1790,6 +1790,30 @@ makeIngSearch('add-ing-search','add-ing-list',code=>{
 });
 
 loadData();
+ // ── Conexión al servidor local ──
+const API_URL = 'http://10.1.10.73:5000/api';
+
+async function loadFromServer() {
+  try {
+    document.getElementById('loading').style.display = 'flex';
+    const res = await fetch(API_URL + '/data');
+    const data = await res.json();
+    if (data.status !== 'ok') throw new Error('Server error');
+    DB = data.items || [];
+    rmMap = {};
+    (data.rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
+    recipeMap = data.recipes || {};
+    renderList();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+  } catch(e) {
+    document.getElementById('loading').innerHTML = 
+      '<p style="color:red;padding:20px">❌ No se pudo conectar al servidor:<br><br>' + e.message + 
+      '<br><br>Verifica que el servidor esté corriendo en el PC de planta.</p>';
+  }
+}
+
+loadFromServer(); 
 </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-y<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -631,18 +631,11 @@ function brixToKgL(brix) {
 // Single-strength brix by fruit (CODEX Alimentarius / FDA 21 CFR)
 // Used to compute the reconstitution fold for % juice calculation
 const SS_BRIX = {
-  acerola:6.0, apple:11.5, apricot:11.7, banana:22.0,
-  'black currant':11.0, blackberry:10.0, blueberry:10.0, boysenberry:10.0,
-  'cantaloupe melon':9.6, cantaloupe:9.6, melon:9.6,
-  'cherry sour':14.0, 'sour cherry':14.0, 'cherry sweet':20.0, 'sweet cherry':20.0, cherry:14.5,
-  cranberry:7.5, elderberry:11.0, grape:16.0, 'white grape':16.0, 'red grape':16.0, 'concord grape':16.0,
-  grapefruit:10.0, guava:7.7, kiwi:15.4, lemon:4.5, lime:4.5,
-  mango:13.0, nectarine:11.8, orange:11.8, papaya:11.5,
-  'passion fruit':14.0, passionfruit:14.0, passion:14.0,
-  peach:10.5, pear:12.0, pineapple:12.8, plum:14.3,
-  pomegranate:16.0, prune:18.5,
-  'raspberry black':11.1, 'black raspberry':11.1, 'raspberry red':9.2, 'red raspberry':9.2, raspberry:9.2,
-  strawberry:8.0, tangerine:11.8, watermelon:7.8,
+  apple:11.5, grape:16.0, 'white grape':16.0, 'red grape':16.0,
+  'concord grape':16.0, pear:12.0, passion:14.0, cranberry:7.5,
+  orange:11.8, mango:13.0, pineapple:12.8, cherry:14.5, peach:10.0,
+  strawberry:7.0, guava:7.5, lemon:8.0, lime:8.0, grapefruit:10.0,
+  acerola:7.0, prune:18.5, watermelon:8.0, kiwi:14.0,
   tropical:11.5, punch:11.5, berry:10.0, default:11.5
 };
 
@@ -690,39 +683,25 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
 
   for (const [code, stdQty] of Object.entries(recipe)) {
     const rm = rmMap[code];
-   if (!rm) continue;
-    const mat = (rm.MATERIAL||rm.material||'').toUpperCase();
+    if (!rm || rm.brix <= 0) continue;
+    const mat = (rm.material||'').toUpperCase();
     if (PACK_MATS.has(mat)) continue;
 
     const adjQty = stdQty * ratio;
-    const unit = (rm.UM||rm.unit||'').toUpperCase();
+    const unit = (rm.unit||'').toUpperCase();
     let sucroseKg;
 
-    // Determinar brix según tipo de material
-    let brix = 0;
-    if (mat === 'WATER') {
-      brix = 0; // agua no tiene sólidos
-    } else if (mat === 'CONCENTRATE') {
-      // extraer brix de la descripción ej. "28bx" o "28 bx"
-      const desc = rm.DESCRIPTION || rm.description || '';
-      const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
-      brix = match ? parseFloat(match[1]) : 0;
-    } else {
-      const desc = rm.DESCRIPTION || rm.description || '';
-      const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
-      brix = match ? parseFloat(match[1]) : 100;
-    }
-
-    if (brix <= 0) continue;
-
+    // Your sheet uses: qty_lb * brix/100 * 0.453592  for LB-based ingredients
+    // For KG/LT: qty_kg * brix/100
     if (unit === 'LB') {
-      sucroseKg = adjQty * (brix/100) * 0.453592;
+      sucroseKg = adjQty * (rm.brix/100) * 0.453592;
     } else {
-      sucroseKg = tokg(adjQty, unit) * (brix/100);
+      // LT, KG, G, OZ -> convert to kg first
+      sucroseKg = toKg(adjQty, unit) * (rm.brix/100);
     }
 
     totalSucroseKg += sucroseKg;
-   breakdown.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brix, sucroseKg });
+    breakdown.push({ code, rm, adjQty, unit:rm.unit, brix:rm.brix, sucroseKg });
   }
 
   // Iterative batch_kg — actual batch volume is batchLT * ratio (both scale together)
@@ -739,69 +718,47 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
 
 // ── JUICE % CALCULATION ─────────────────────────────────────────────────────
 // Exact method from your Goliath-Taoro sheets:
+// 1. density_conc (lb/gal) = brixToLbGal(brix_conc)
+// 2. solid_lb_gal_conc = density_conc * brix_conc / 100
+// 3. solid_lb_gal_ss   = brixToLbGal(ss_brix) * ss_brix / 100
+// 4. fold = solid_lb_gal_conc / solid_lb_gal_ss
+// 5. gal_conc = qty_lb / density_conc
+// 6. reconst_gal = gal_conc * fold
+// 7. % juice = sum(reconst_gal) / batch_gal * 100
 function calcJuicePct(recipe, batchLT, ratio) {
   const CONC_MATS = new Set(['CONCENTRATE','Concentrate']);
-  const batchGal = batchLT * ratio * 0.264172;
-
-  // Brix Chart lookup [brix, lbPerGal, lbSolidPerGal]
-  const BRIX_TABLE = [
-    [0,8.322,0],[5,8.485,0.424],[7.5,8.569,0.643],[10,8.655,0.866],
-    [11,8.689,0.956],[11.5,8.707,1.001],[12,8.724,1.047],[12.8,8.752,1.12],
-    [13,8.759,1.139],[13.7,8.788,1.213],[14,8.795,1.231],[15,8.83,1.325],
-    [15.4,8.845,1.362],[16,8.866,1.419],[18.5,8.957,1.657],[20,9.012,1.802],
-    [22,9.087,1.999],[25,9.201,2.3],[28,9.317,2.609],[30,9.396,2.819],
-    [32,9.477,3.033],[35,9.599,3.36],[40,9.809,3.924],[42,9.895,4.156],
-    [45,10.027,4.512],[50,10.252,5.126],[55,10.486,5.767],[60,10.727,6.436],
-    [65,10.977,7.135],[68,11.13,7.568],[69.8,11.191,7.811],[72,11.302,8.137],[75,11.457,8.593],[80,11.725,9.38]
-  ];
-
-  function getBrixData(brix) {
-    for (let i = 0; i < BRIX_TABLE.length - 1; i++) {
-      if (brix >= BRIX_TABLE[i][0] && brix <= BRIX_TABLE[i+1][0]) {
-        const t = (brix - BRIX_TABLE[i][0]) / (BRIX_TABLE[i+1][0] - BRIX_TABLE[i][0]);
-        return {
-          lbPerGal: BRIX_TABLE[i][1] + t * (BRIX_TABLE[i+1][1] - BRIX_TABLE[i][1]),
-          lbSolidPerGal: BRIX_TABLE[i][2] + t * (BRIX_TABLE[i+1][2] - BRIX_TABLE[i][2])
-        };
-      }
-    }
-    return { lbPerGal: BRIX_TABLE[BRIX_TABLE.length-1][1], lbSolidPerGal: BRIX_TABLE[BRIX_TABLE.length-1][2] };
-  }
-
+  const batchGal = batchLT * ratio * 0.264172;  // actual batch gallons = stdBatch * ratio
   let totalReconst = 0;
   const details = [];
 
   for (const [code, stdQty] of Object.entries(recipe)) {
     const rm = rmMap[code];
-    if (!rm) continue;
-    if (!CONC_MATS.has(rm.MATERIAL||rm.material)) continue;
+    if (!rm || rm.brix <= 0) continue;
+    if (!CONC_MATS.has(rm.material)) continue;
 
     const adjQty = stdQty * ratio;
-    const qty_lb = toLb(adjQty, rm.UM||rm.unit);
+    const qty_lb = toLb(adjQty, rm.unit);
 
-    const desc = rm.DESCRIPTION || rm.description || '';
-    const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
-    const brixConc = match ? parseFloat(match[1]) : 0;
-    if (brixConc <= 0) continue;
+    const brixConc = rm.brix;
+    const ssBrix = getSsBrix(rm.description);
 
-   const ssBrix = getSsBrix(rm.DESCRIPTION || rm.description || '');
-    if (ssBrix <= 0) continue;
-
-    const concData = getBrixData(brixConc);
-    const ssData = getBrixData(ssBrix);
-
-    const concGal = qty_lb / concData.lbPerGal;
-    const fold = concData.lbSolidPerGal / ssData.lbSolidPerGal;
+    const densConc = brixToLbGal(brixConc);
+    const solidConc = densConc * brixConc / 100;
+    const denssSS = brixToLbGal(ssBrix);
+    const solidSS = denssSS * ssBrix / 100;
+    const fold = solidConc / solidSS;
+    const concGal = qty_lb / densConc;
     const reconstGal = concGal * fold;
     totalReconst += reconstGal;
 
-    details.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brixConc, ssBrix, fold, concGal, reconstGal, qty_lb });
+    details.push({ code, rm, adjQty, unit:rm.unit, brixConc, ssBrix,
+      densConc, solidConc, solidSS, fold, concGal, reconstGal, qty_lb });
   }
 
   const juicePct = batchGal > 0 ? (totalReconst / batchGal) * 100 : 0;
   return { juicePct, totalReconst, batchGal, details };
 }
- 
+
 // ── LOAD ───────────────────────────────────────────────────────────────────
 async function loadData(){
   DB = EMBEDDED_DATA;
@@ -816,19 +773,19 @@ async function loadData(){
 function getFiltered(){
   const q=document.getElementById('search').value.trim().toLowerCase();
   return DB.products.filter(p=>{
-    if(filterDiss!=='all'&&String(p.DISOLUTION||p.dissolution)!==filterDiss)return false;
+    if(filterDiss!=='all'&&String(p.dissolution)!==filterDiss)return false;
     if(!q)return true;
-    return p.code.toLowerCase().includes(q)||p.description.toLowerCase().includes(q)||(p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q);
+    return p.code.toLowerCase().includes(q)||p.description.toLowerCase().includes(q)||(p.flavor||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q);
   });
 }
 function renderList(){
   const list=getFiltered();
   document.getElementById('product-count').textContent=`${list.length} de ${DB.products.length} productos`;
   document.getElementById('product-list').innerHTML=list.map(p=>`
-    <div class="product-item${currentProduct&&currentProduct.code===(p.code||p.CODE||'')?' active':''}" onclick="selectProduct('${(p.code||p.CODE||'').replace(/'/g,"\\'")}')">
+    <div class="product-item${currentProduct&&currentProduct.code===p.code?' active':''}" onclick="selectProduct('${p.code.replace(/'/g,"\\'")}')">
       <div class="pi-code">${p.code}</div>
       <div class="pi-desc">${p.description}</div>
-      <div class="pi-meta">${p.brand||''} ${p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor?'· '+p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor:''} · Dil.${p.DISOLUTION||p.dissolution}${p.batch_size?' · '+p.batch_size.toLocaleString()+' LT':''}</div>
+      <div class="pi-meta">${p.brand||''} ${p.flavor?'· '+p.flavor:''} · Dil.${p.dissolution}${p.batch_size?' · '+p.batch_size.toLocaleString()+' LT':''}</div>
     </div>`).join('');
 }
 document.getElementById('search').addEventListener('input',renderList);
@@ -884,10 +841,10 @@ function renderInfo(){
   document.getElementById('inf-code').textContent=p.code;
   document.getElementById('inf-desc').textContent=p.description;
   const badge=document.getElementById('inf-diss-badge');
-  badge.textContent=p.DISOLUTION||p.dissolution===1?'Disolución 1':'Jarabe 1+3';
-  badge.className='badge '+(p.DISOLUTION||p.dissolution===1?'badge-diss1':'badge-diss4');
+  badge.textContent=p.dissolution===1?'Disolución 1':'Jarabe 1+3';
+  badge.className='badge '+(p.dissolution===1?'badge-diss1':'badge-diss4');
 
- const fields=[['Brand',p.brand],['Producto',p.PRODUCT||p.product],['Sabor',p.FLAVORS||p.flavor],['Unidad',p.UNIT||p.unit],['Contenido',p.NET||p.net],['Uds/Pack',p.UNITS_PACK||p.units_pack],['Disolución',p.DISOLUTION||p.dissolution],['Batch estándar',p.batch_size?p.batch_size.toLocaleString()+' LT':'—']];
+  const fields=[['Brand',p.brand],['Producto',p.product],['Sabor',p.flavor],['Unidad',p.unit],['Contenido',p.net],['Uds/Pack',p.units_pack],['Disolución',p.dissolution],['Batch estándar',p.batch_size?p.batch_size.toLocaleString()+' LT':'—']];
   document.getElementById('inf-general').innerHTML=fields.map(([l,v])=>`<div class="info-item"><label>${l}</label><span>${v||'—'}</span></div>`).join('');
 
   // Show live brix summary for this product at standard batch
@@ -901,12 +858,12 @@ function showBrixSummary(p) {
   const { totalSucroseKg, batchBrix, batchKg } = calcDissolvedSolids(recipe, stdBatch, 1);
   const { juicePct, details } = calcJuicePct(recipe, stdBatch, 1);
 
-  const beverageBrix = p.DISOLUTION||p.dissolution === 1 ? batchBrix : batchBrix / 4;
-  const syrupBrix   = p.DISOLUTION||p.dissolution === 4 ? batchBrix : null;
+  const beverageBrix = p.dissolution === 1 ? batchBrix : batchBrix / 4;
+  const syrupBrix   = p.dissolution === 4 ? batchBrix : null;
 
   let html = `<div class="brix-summary">`;
-  html += `<div class="bs-item"><span class="bs-label">${p.DISOLUTION||p.dissolution===4?'Brix jarabe (calc.)':'Brix / S.D. (calc.)'}</span><span class="bs-val">${batchBrix.toFixed(2)}°Bx</span></div>`;
-  if (p.DISOLUTION||p.dissolution === 4) html += `<div class="bs-item"><span class="bs-label">Brix bebida (÷4)</span><span class="bs-val">${beverageBrix.toFixed(2)}°Bx</span></div>`;
+  html += `<div class="bs-item"><span class="bs-label">${p.dissolution===4?'Brix jarabe (calc.)':'Brix / S.D. (calc.)'}</span><span class="bs-val">${batchBrix.toFixed(2)}°Bx</span></div>`;
+  if (p.dissolution === 4) html += `<div class="bs-item"><span class="bs-label">Brix bebida (÷4)</span><span class="bs-val">${beverageBrix.toFixed(2)}°Bx</span></div>`;
   html += `<div class="bs-item"><span class="bs-label">Sólidos disueltos</span><span class="bs-val">${totalSucroseKg.toFixed(1)} kg</span></div>`;
   if (details.length > 0) html += `<div class="bs-item"><span class="bs-label">% Jugo (calc.)</span><span class="bs-val">${juicePct.toFixed(2)}%</span></div>`;
   html += `<div class="bs-item"><span class="bs-label">Masa batch</span><span class="bs-val">${batchKg.toFixed(0)} kg</span></div>`;
@@ -947,10 +904,10 @@ function renderRecipeTable(){
       return `<tr class="${rowClass}">
         <td class="td-radio"><input type="radio" class="pin-radio" name="pin-ing" value="${code}" ${pinnedIngredient===code?'checked':''} onchange="setPinned('${code}')"></td>
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
-        <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-        <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
-        <td>${rm.UM||rm.unit||'—'}</td>
+        <td style="font-size:12px">${rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
+        <td>${matBadge(rm.material)}</td>
+        <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
+        <td>${rm.unit||'—'}</td>
         <td style="text-align:right">
           <input type="number" class="qty-edit-input${isChanged||isAdded?' changed':''}" value="${currentQty}" step="any"
             onchange="onQtyChange('${code}',this.value,${stdQty})" oninput="this.classList.add('changed')">
@@ -960,10 +917,10 @@ function renderRecipeTable(){
     }else{
       return `<tr>
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
-        <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-        <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
-        <td>${rm.UM||rm.unit||'—'}</td>
+        <td style="font-size:12px">${rm.description||code}</td>
+        <td>${matBadge(rm.material)}</td>
+        <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
+        <td>${rm.unit||'—'}</td>
         <td style="text-align:right;font-weight:600">${fmtN(stdQty)}</td>
       </tr>`;
     }
@@ -1067,8 +1024,8 @@ function updateCalcFromPin(){
   const rm=rmMap[pinnedIngredient]||{};
   const recipe=getEffectiveRecipe();
   const stdQty=recipe[pinnedIngredient]||0;
-  display.innerHTML=`<strong>${pinnedIngredient}</strong> — ${rm.description||''} <span style="color:var(--text3)">(std: ${fmtN(stdQty)} ${rm.UM||rm.unit||''})</span>`;
-  unitLabel.textContent=rm.UM||rm.unit||'—';
+  display.innerHTML=`<strong>${pinnedIngredient}</strong> — ${rm.description||''} <span style="color:var(--text3)">(std: ${fmtN(stdQty)} ${rm.unit||''})</span>`;
+  unitLabel.textContent=rm.unit||'—';
 }
 
 // ── CALC TAB ───────────────────────────────────────────────────────────────
@@ -1114,16 +1071,16 @@ function renderCalcResults(ratio,newB,stdB,ingInfo=null){
   // Always calculate using stdB + scaleRatio so numerator and denominator scale together.
   const scaleRatio = stdB > 0 ? newB / stdB : 1;
   const { totalSucroseKg, batchBrix, batchKg } = calcDissolvedSolids(recipe, stdB, scaleRatio);
-  const beverageBrix = p.DISOLUTION||p.dissolution===1 ? batchBrix : batchBrix/4;
+  const beverageBrix = p.dissolution===1 ? batchBrix : batchBrix/4;
   const { juicePct, details:juiceDet } = calcJuicePct(recipe, stdB, scaleRatio);
 
   const metricCards=[
     {label:'Batch resultante',val:newB.toFixed(0)+' LT',cls:'accent-card'},
     {label:'Batch estándar',val:(stdB||0).toLocaleString('en',{maximumFractionDigits:0})+' LT'},
     {label:'Factor de escala',val:ratio.toFixed(4)+'x'},
-    {label:p.DISOLUTION||p.dissolution===4?'Brix jarabe (calc.)':'Brix / S.D. (calc.)',val:batchBrix.toFixed(2)+'°Bx',cls:''},
+    {label:p.dissolution===4?'Brix jarabe (calc.)':'Brix / S.D. (calc.)',val:batchBrix.toFixed(2)+'°Bx',cls:''},
   ];
-  if(p.DISOLUTION||p.dissolution===4) metricCards.push({label:'Brix bebida (÷4)',val:beverageBrix.toFixed(2)+'°Bx'});
+  if(p.dissolution===4) metricCards.push({label:'Brix bebida (÷4)',val:beverageBrix.toFixed(2)+'°Bx'});
   metricCards.push({label:'Sólidos disueltos',val:totalSucroseKg.toFixed(1)+' kg'});
   if(juiceDet.length) metricCards.push({label:'% Jugo (calc.)',val:juicePct.toFixed(2)+'%'});
   if(ingInfo) metricCards.push({label:'Ingrediente base',val:ingInfo.code+'  ('+fmtN(ingInfo.available)+' '+(rmMap[ingInfo.code]||{}).unit+')'});
@@ -1141,10 +1098,10 @@ function renderCalcResults(ratio,newB,stdB,ingInfo=null){
     return `<tr style="${isPin?'background:var(--accent-light)':''}">
       <td class="td-radio"><input type="radio" class="pin-radio" name="calc-pin-ing" value="${code}" ${isPin?'checked':''} onchange="setPinned('${code}');switchResizeMode('ingredient')"></td>
       <td class="font-mono" style="font-size:10px">${code}</td>
-      <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
-      <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-      <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
-      <td>${rm.UM||rm.unit||'—'}</td>
+      <td style="font-size:12px">${rm.description||code}</td>
+      <td>${matBadge(rm.material)}</td>
+      <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
+      <td>${rm.unit||'—'}</td>
       <td style="text-align:right">${fmtN(stdQty)}</td>
       <td style="text-align:right;font-weight:700">${fmtN(adjQty)}</td>
       <td style="text-align:right;color:${Math.abs(delta)<0.01?'var(--text3)':delta>0?'var(--accent)':'var(--danger)'}">${scaleRatio!==1?dStr:'—'}</td>
@@ -1177,7 +1134,7 @@ function verifyRecipe(){
   const recipe=getEffectiveRecipe();
 
   const { totalSucroseKg, batchBrix, batchKg, breakdown } = calcDissolvedSolids(recipe, batchLT, 1);
-  const beverageBrix = p.DISOLUTION||p.dissolution===1 ? batchBrix : batchBrix/4;
+  const beverageBrix = p.dissolution===1 ? batchBrix : batchBrix/4;
   const displayBrix = beverageBrix;
 
   const { juicePct, totalReconst, batchGal, details:juiceDet } = calcJuicePct(recipe, batchLT, 1);
@@ -1188,7 +1145,7 @@ function verifyRecipe(){
   document.getElementById('verify-results').style.display='block';
   document.getElementById('verify-metrics').innerHTML=`
     <div class="metric"><label>Batch verificado</label><div class="val">${batchLT.toLocaleString()} LT</div></div>
-    <div class="metric ${brixOk===true?'accent-card':''}"><label>${p.DISOLUTION||p.dissolution===4?'Brix jarabe':'Brix / S.D. calculado'}</label><div class="val ${brixOk===true?'ok':brixOk===false?'bad':''}">${batchBrix.toFixed(2)}°Bx</div>${p.DISOLUTION||p.dissolution===4?`<div class="sub">Bebida: ${beverageBrix.toFixed(2)}°Bx</div>`:''}</div>
+    <div class="metric ${brixOk===true?'accent-card':''}"><label>${p.dissolution===4?'Brix jarabe':'Brix / S.D. calculado'}</label><div class="val ${brixOk===true?'ok':brixOk===false?'bad':''}">${batchBrix.toFixed(2)}°Bx</div>${p.dissolution===4?`<div class="sub">Bebida: ${beverageBrix.toFixed(2)}°Bx</div>`:''}</div>
     <div class="metric"><label>Sólidos disueltos (kg)</label><div class="val">${totalSucroseKg.toFixed(1)}</div></div>
     <div class="metric"><label>Masa batch</label><div class="val">${batchKg.toFixed(0)} kg</div></div>
     ${juiceDet.length?`<div class="metric ${juiceOk===true?'accent-card':''}"><label>% Jugo calc.</label><div class="val ${juiceOk===true?'ok':juiceOk===false?'bad':''}">${juicePct.toFixed(2)}%</div></div>`:''}
@@ -1207,7 +1164,7 @@ function verifyRecipe(){
   // Brix breakdown table
   document.getElementById('verify-brix-body').innerHTML=breakdown.map(i=>{
     const pct=totalSucroseKg>0?(i.sucroseKg/totalSucroseKg*100):0;
-    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.MATERIAL||rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
+    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
   }).join('');
 
   // Juice % detail — EXACT method from your Goliath-Taoro sheets
@@ -1260,9 +1217,9 @@ function openModal(editing=null){
     if(p){
       document.getElementById('f-code').value=p.code;document.getElementById('f-code').readOnly=true;
       document.getElementById('f-desc').value=p.description;document.getElementById('f-brand').value=p.brand||'';
-      document.getElementById('f-product').value=p.PRODUCT||p.product||p.PRODUCT||p.product||'';document.getElementById('f-flavor').value=p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor||'';
-      document.getElementById('f-unit').value=p.UNIT||p.unit||'';document.getElementById('f-net').value=p.NET||p.net||'';
-      document.getElementById('f-units-pack').value=p.UNIT||p.UNITS_PACK||p.units_pack||'';document.getElementById('f-diss').value=p.DISOLUTION||p.dissolution;
+      document.getElementById('f-product').value=p.product||'';document.getElementById('f-flavor').value=p.flavor||'';
+      document.getElementById('f-unit').value=p.unit||'';document.getElementById('f-net').value=p.net||'';
+      document.getElementById('f-units-pack').value=p.units_pack||'';document.getElementById('f-diss').value=p.dissolution;
       document.getElementById('f-batch').value=p.batch_size||'';modalRecipe={...p.recipe};
     }
   }else{
@@ -1279,8 +1236,8 @@ function renderModalRecipe(){
     const rm=rmMap[code]||{};
     return`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
       <span class="font-mono" style="font-size:10px;min-width:65px">${code}</span>
-      <span style="flex:1;font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</span>
-      <span style="font-size:11px;color:var(--text3);min-width:25px">${rm.UM||rm.unit||''}</span>
+      <span style="flex:1;font-size:12px">${rm.description||code}</span>
+      <span style="font-size:11px;color:var(--text3);min-width:25px">${rm.unit||''}</span>
       <input type="number" step="any" value="${qty}" style="width:90px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:right"
         onchange="modalRecipe['${code}']=parseFloat(this.value)||0">
       <button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:13px;padding:2px 5px" onclick="delete modalRecipe['${code}'];renderModalRecipe()">✕</button>
@@ -1332,6 +1289,10 @@ loadData();
 
 // ── V4 OVERRIDES & NEW FEATURES ────────────────────────────────────────────
 
+// ── SMART SEARCH DROPDOWN ──────────────────────────────────────────────────
+let activeFilters = {diss:'all', brand:'all'};
+let planLineFilter = 'all';
+
 // Override loadData to use new data structure
 async function loadData(){
   DB = APP_DATA;
@@ -1343,10 +1304,6 @@ async function loadData(){
   document.getElementById('loading').style.display='none';
   document.getElementById('app').style.display='flex';
 }
-
-// ── SMART SEARCH DROPDOWN ──────────────────────────────────────────────────
-let activeFilters = {diss:'all', brand:'all'};
-let planLineFilter = 'all';
 
 function buildBrandFilters(){
   const brands = [...new Set(DB.products.map(p=>p.brand).filter(Boolean))].sort();
@@ -1371,11 +1328,11 @@ document.querySelectorAll('#filter-chips .chip').forEach(b=>b.addEventListener('
 
 function getFiltered(q=''){
   return DB.products.filter(p=>{
-    if(activeFilters.diss!=='all' && String(p.DISOLUTION||p.dissolution)!==activeFilters.diss) return false;
+    if(activeFilters.diss!=='all' && String(p.dissolution)!==activeFilters.diss) return false;
     if(activeFilters.brand!=='all' && p.brand!==activeFilters.brand) return false;
     if(!q) return true;
     const ql=q.toLowerCase();
-    return p.code.toLowerCase().includes(ql)||p.description.toLowerCase().includes(ql)||(p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor||'').toLowerCase().includes(ql)||(p.brand||'').toLowerCase().includes(ql);
+    return p.code.toLowerCase().includes(ql)||p.description.toLowerCase().includes(ql)||(p.flavor||'').toLowerCase().includes(ql)||(p.brand||'').toLowerCase().includes(ql);
   });
 }
 
@@ -1389,13 +1346,13 @@ searchInput.addEventListener('input', ()=>{
   if(!matches.length){searchDropdown.classList.remove('open');return;}
   // Group by product type
   const groups = {};
-  matches.forEach(p=>{const k=p.PRODUCT||p.product||p.PRODUCT||p.product||'Otros';if(!groups[k])groups[k]=[];groups[k].push(p);});
+  matches.forEach(p=>{const k=p.product||'Otros';if(!groups[k])groups[k]=[];groups[k].push(p);});
   searchDropdown.innerHTML = Object.entries(groups).map(([grp,prods])=>`
     <div class="sd-group-header">${grp}</div>
     ${prods.map(p=>`<div class="sd-item" onclick="selectProduct('${p.code.replace(/'/g,"\'")}');searchInput.value='';searchDropdown.classList.remove('open');renderList()">
       <span class="sd-code">${p.code}</span>
       <span class="sd-desc">${p.description}</span>
-      <span class="sd-meta">${p.brand||''}<span class="sd-chip">Dil.${p.DISOLUTION||p.dissolution}</span></span>
+      <span class="sd-meta">${p.brand||''}<span class="sd-chip">Dil.${p.dissolution}</span></span>
     </div>`).join('')}`).join('');
   searchDropdown.classList.add('open');
 });
@@ -1454,7 +1411,7 @@ function setupVerifyProductSearch(){
     const matches=DB.products.filter(p=>p.code.toLowerCase().includes(q)||p.description.toLowerCase().includes(q)).slice(0,30);
     dd.innerHTML=matches.map(p=>`<div class="sd-item" onclick="switchVerifyProduct('${p.code.replace(/'/g,"\'")}')">
       <span class="sd-code">${p.code}</span><span class="sd-desc">${p.description}</span>
-      <span class="sd-meta"><span class="sd-chip">Dil.${p.DISOLUTION||p.dissolution}</span></span>
+      <span class="sd-meta"><span class="sd-chip">Dil.${p.dissolution}</span></span>
     </div>`).join('');
     dd.classList.toggle('open',matches.length>0);
   });
@@ -1494,10 +1451,10 @@ function renderVerifyRecipeTable(){
     if(isEditing){
       return `<tr class="${verifyRecipeOverride?'changed-row':''}">
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
-        <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-        <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
-        <td>${rm.UM||rm.unit||'—'}</td>
+        <td style="font-size:11px">${rm.description||code}</td>
+        <td>${matBadge(rm.material)}</td>
+        <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
+        <td>${rm.unit||'—'}</td>
         <td style="text-align:right">
           <input type="number" class="qty-edit-input" value="${qty}" step="any" style="width:90px"
             onchange="onVerifyQtyChange('${code}',this.value)">
@@ -1505,7 +1462,7 @@ function renderVerifyRecipeTable(){
         <td><button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:12px" onclick="removeVerifyIng('${code}')">✕</button></td>
       </tr>`;
     }
-    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td><td>${matBadge(rm.MATERIAL||rm.material)}</td><td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td><td>${rm.UM||rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
+    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.description||code}</td><td>${matBadge(rm.material)}</td><td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td><td>${rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
   }).join('');
 
   if(isEditing) makeIngSearch('verify-ing-search','verify-ing-list',
@@ -1564,7 +1521,7 @@ function verifyRecipe(){
   const recipe=getVerifyRecipe();
 
   const { totalSucroseKg, batchBrix, batchKg, breakdown } = calcDissolvedSolids(recipe, batchLT, 1);
-  const beverageBrix = p.DISOLUTION||p.dissolution===1 ? batchBrix : batchBrix/4;
+  const beverageBrix = p.dissolution===1 ? batchBrix : batchBrix/4;
   const { juicePct, totalReconst, batchGal, details:juiceDet } = calcJuicePct(recipe, batchLT, 1);
 
   const brixOk = brixTarget ? Math.abs(beverageBrix-brixTarget) <= brixTarget*tol/100 : null;
@@ -1575,7 +1532,7 @@ function verifyRecipe(){
 
   document.getElementById('verify-metrics').innerHTML=`
     <div class="metric"><label>Batch</label><div class="val">${batchLT.toLocaleString()} LT</div></div>
-    <div class="metric ${brixOk===true?'accent-card':''}"><label>${p.DISOLUTION||p.dissolution===4?'Brix jarabe':'Brix / S.D.'}</label><div class="val ${brixOk===true?'ok':brixOk===false?'bad':''}">${batchBrix.toFixed(2)}°Bx</div>${p.DISOLUTION||p.dissolution===4?`<div class="sub">Bebida: ${beverageBrix.toFixed(2)}°</div>`:''}</div>
+    <div class="metric ${brixOk===true?'accent-card':''}"><label>${p.dissolution===4?'Brix jarabe':'Brix / S.D.'}</label><div class="val ${brixOk===true?'ok':brixOk===false?'bad':''}">${batchBrix.toFixed(2)}°Bx</div>${p.dissolution===4?`<div class="sub">Bebida: ${beverageBrix.toFixed(2)}°</div>`:''}</div>
     <div class="metric"><label>Sólidos disueltos</label><div class="val">${totalSucroseKg.toFixed(1)} kg</div></div>
     <div class="metric"><label>Masa batch</label><div class="val">${batchKg.toFixed(0)} kg</div></div>
     ${juiceDet.length?`<div class="metric ${juiceOk===true?'accent-card':''}"><label>% Jugo</label><div class="val ${juiceOk===true?'ok':juiceOk===false?'bad':''}">${juicePct.toFixed(2)}%</div></div>`:''}
@@ -1593,7 +1550,7 @@ function verifyRecipe(){
 
   document.getElementById('verify-brix-body').innerHTML=breakdown.map(i=>{
     const pct=totalSucroseKg>0?(i.sucroseKg/totalSucroseKg*100):0;
-    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.MATERIAL||rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
+    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
   }).join('');
 
   if(juiceDet.length){
@@ -1852,37 +1809,10 @@ async function loadFromServer() {
       const items       = await itemsRes.json();
       const rawMaterials = await rawMatsRes.json();
 
-     const rawItems = Array.isArray(items) ? items : (items.products || items.items || []);
-DB = {
-  products: rawItems.map(p => ({
-    code:        String(p.CODE || p.code || ""),
-    description: String(p.DESCRIPTION || p.description || ""),
-    brand:       String(p.BRAND || p.brand || ""),
-    flavor:      String(p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor || p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor || p.TYPE || ""),
-    dissolution: p.DISOLUTION||p.dissolution || p.DISOLUTION||p.dissolution || p.fc || 1,
-    batch_size:  p.BATCH_SIZE || p.batch_size || 0,
-    line:        String(p.LINE || p.line || ""),
-    ...p
-  })),
-  rawMaterials: []
-};
-
+      DB = items || [];
       rmMap = {};
-     const rmArray = Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials.rawMaterials || []);
-rmArray.forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
-     // Cargar recetas del servidor
-const recipesRes = await fetch(API_URL + '/recipes');
-if (recipesRes.ok) {
-  const recipesData = await recipesRes.json();
-recipeMap = recipesData.recipes || recipesData || {};
-  // Inyectar recetas en cada producto
-DB.products = DB.products.map(p => ({
-  ...p,
-  recipe: recipeMap[p.code] ?
-    Object.fromEntries(recipeMap[p.code].map(i => [i.ingredient_code, i.quantity])) : {}
-}));
-}
-
+      (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
+      recipeMap = {};
       renderList();
       document.getElementById('loading').style.display = 'none';
       document.getElementById('app').style.display = 'flex';

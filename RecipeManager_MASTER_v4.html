@@ -683,7 +683,7 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
 
   for (const [code, stdQty] of Object.entries(recipe)) {
     const rm = rmMap[code];
-    if (!rm || rm.fc||rm.brix <= 0) continue;
+   if (!rm || (rm.fc||rm.brix||0) <= 0) continue;
     const mat = (rm.MATERIAL||rm.material||'').toUpperCase();
     if (PACK_MATS.has(mat)) continue;
 

@@ -698,7 +698,7 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
     } else if (mat === 'CONCENTRATE') {
       // extraer brix de la descripción ej. "28bx" o "28 bx"
       const desc = rm.DESCRIPTION || rm.description || '';
-      const match = desc.match(/(\d+(?:\.\d+)?)\s*bx/i);
+      const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
       brix = match ? parseFloat(match[1]) : 0;
     } else {
       // polvos, aditivos, azúcar = 100% sólidos

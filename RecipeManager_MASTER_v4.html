@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+y<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1832,6 +1832,12 @@ const recipesRes = await fetch(API_URL + '/recipes');
 if (recipesRes.ok) {
   const recipesData = await recipesRes.json();
 recipeMap = recipesData.recipes || recipesData || {};
+  // Inyectar recetas en cada producto
+DB.products = DB.products.map(p => ({
+  ...p,
+  recipe: recipeMap[p.code] ?
+    Object.fromEntries(recipeMap[p.code].map(i => [i.ingredient_code, i.quantity])) : {}
+}));
 }
 
       renderList();

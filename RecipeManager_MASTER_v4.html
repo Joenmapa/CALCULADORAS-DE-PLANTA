@@ -739,16 +739,35 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
 
 // ── JUICE % CALCULATION ─────────────────────────────────────────────────────
 // Exact method from your Goliath-Taoro sheets:
-// 1. density_conc (lb/gal) = brixToLbGal(brix_conc)
-// 2. solid_lb_gal_conc = density_conc * brix_conc / 100
-// 3. solid_lb_gal_ss   = brixToLbGal(ss_brix) * ss_brix / 100
-// 4. fold = solid_lb_gal_conc / solid_lb_gal_ss
-// 5. gal_conc = qty_lb / density_conc
-// 6. reconst_gal = gal_conc * fold
-// 7. % juice = sum(reconst_gal) / batch_gal * 100
 function calcJuicePct(recipe, batchLT, ratio) {
   const CONC_MATS = new Set(['CONCENTRATE','Concentrate']);
-  const batchGal = batchLT * ratio * 0.264172;  // actual batch gallons = stdBatch * ratio
+  const batchGal = batchLT * ratio * 0.264172;
+
+  // Brix Chart lookup [brix, lbPerGal, lbSolidPerGal]
+  const BRIX_TABLE = [
+    [0,8.322,0],[5,8.485,0.424],[7.5,8.569,0.643],[10,8.655,0.866],
+    [11,8.689,0.956],[11.5,8.707,1.001],[12,8.724,1.047],[12.8,8.752,1.12],
+    [13,8.759,1.139],[13.7,8.788,1.213],[14,8.795,1.231],[15,8.83,1.325],
+    [15.4,8.845,1.362],[16,8.866,1.419],[18.5,8.957,1.657],[20,9.012,1.802],
+    [22,9.087,1.999],[25,9.201,2.3],[28,9.317,2.609],[30,9.396,2.819],
+    [32,9.477,3.033],[35,9.599,3.36],[40,9.809,3.924],[42,9.895,4.156],
+    [45,10.027,4.512],[50,10.252,5.126],[55,10.486,5.767],[60,10.727,6.436],
+    [65,10.977,7.135],[69.8,11.191,7.811],[72,11.302,8.137],[75,11.457,8.593],[80,11.725,9.38]
+  ];
+
+  function getBrixData(brix) {
+    for (let i = 0; i < BRIX_TABLE.length - 1; i++) {
+      if (brix >= BRIX_TABLE[i][0] && brix <= BRIX_TABLE[i+1][0]) {
+        const t = (brix - BRIX_TABLE[i][0]) / (BRIX_TABLE[i+1][0] - BRIX_TABLE[i][0]);
+        return {
+          lbPerGal: BRIX_TABLE[i][1] + t * (BRIX_TABLE[i+1][1] - BRIX_TABLE[i][1]),
+          lbSolidPerGal: BRIX_TABLE[i][2] + t * (BRIX_TABLE[i+1][2] - BRIX_TABLE[i][2])
+        };
+      }
+    }
+    return { lbPerGal: BRIX_TABLE[BRIX_TABLE.length-1][1], lbSolidPerGal: BRIX_TABLE[BRIX_TABLE.length-1][2] };
+  }
+
   let totalReconst = 0;
   const details = [];
 
@@ -762,22 +781,26 @@ function calcJuicePct(recipe, batchLT, ratio) {
 
     const desc = rm.DESCRIPTION || rm.description || '';
     const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
-    const brixConc = match ? parseFloat(match[1]) : (rm.fc||rm.brix||0);
-    const ssBrix = getSsBrix(rm.description);
+    const brixConc = match ? parseFloat(match[1]) : 0;
+    if (brixConc <= 0) continue;
 
-    const densConc = brixToLbGal(brixConc);
-    const solidConc = densConc * brixConc / 100;
-    const denssSS = brixToLbGal(ssBrix);
-    const solidSS = denssSS * ssBrix / 100;
-    const fold = solidConc / solidSS;
-    const concGal = qty_lb / densConc;
+    const ssBrix = getSsBrix(rm.description);
+    if (ssBrix <= 0) continue;
+
+    const concData = getBrixData(brixConc);
+    const ssData = getBrixData(ssBrix);
+
+    const concGal = qty_lb / concData.lbPerGal;
+    const fold = concData.lbSolidPerGal / ssData.lbSolidPerGal;
     const reconstGal = concGal * fold;
     totalReconst += reconstGal;
 
-    details.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brixConc, ssBrix,
-      densConc, solidConc, solidSS, fold, concGal, reconstGal, qty_lb });
+    details.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brixConc, ssBrix, fold, concGal, reconstGal, qty_lb });
   }
 
+  const juicePct = batchGal > 0 ? (totalReconst / batchGal) * 100 : 0;
+  return { juicePct, totalReconst, batchGal, details };
+}
   const juicePct = batchGal > 0 ? (totalReconst / batchGal) * 100 : 0;
   return { juicePct, totalReconst, batchGal, details };
 }

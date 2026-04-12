@@ -844,7 +844,7 @@ function renderInfo(){
   badge.textContent=p.DISOLUTION||p.dissolution===1?'Disolución 1':'Jarabe 1+3';
   badge.className='badge '+(p.DISOLUTION||p.dissolution===1?'badge-diss1':'badge-diss4');
 
-  const fields=[['Brand',p.brand],['Producto',p.PRODUCT||p.product],['Sabor',p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor],['Unidad',p.UNIT||p.unit],['Contenido',p.NET||p.net],['Uds/Pack',p.UNIT||p.UNITS_PACK||p.units_pack],['Disolución',p.DISOLUTION||p.dissolution],['Batch estándar',p.batch_size?p.batch_size.toLocaleString()+' LT':'—']];
+  const fields=[['Brand',p.brand],['Producto',p.PRODUCT||p.product||p.PRODUCT||p.product],['Sabor',p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor],['Unidad',p.UNIT||p.unit],['Contenido',p.NET||p.net],['Uds/Pack',p.UNIT||p.UNITS_PACK||p.units_pack],['Disolución',p.DISOLUTION||p.dissolution],['Batch estándar',p.batch_size?p.batch_size.toLocaleString()+' LT':'—']];
   document.getElementById('inf-general').innerHTML=fields.map(([l,v])=>`<div class="info-item"><label>${l}</label><span>${v||'—'}</span></div>`).join('');
 
   // Show live brix summary for this product at standard batch
@@ -1217,7 +1217,7 @@ function openModal(editing=null){
     if(p){
       document.getElementById('f-code').value=p.code;document.getElementById('f-code').readOnly=true;
       document.getElementById('f-desc').value=p.description;document.getElementById('f-brand').value=p.brand||'';
-      document.getElementById('f-product').value=p.PRODUCT||p.product||'';document.getElementById('f-flavor').value=p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor||'';
+      document.getElementById('f-product').value=p.PRODUCT||p.product||p.PRODUCT||p.product||'';document.getElementById('f-flavor').value=p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor||'';
       document.getElementById('f-unit').value=p.UNIT||p.unit||'';document.getElementById('f-net').value=p.NET||p.net||'';
       document.getElementById('f-units-pack').value=p.UNIT||p.UNITS_PACK||p.units_pack||'';document.getElementById('f-diss').value=p.DISOLUTION||p.dissolution;
       document.getElementById('f-batch').value=p.batch_size||'';modalRecipe={...p.recipe};
@@ -1346,7 +1346,7 @@ searchInput.addEventListener('input', ()=>{
   if(!matches.length){searchDropdown.classList.remove('open');return;}
   // Group by product type
   const groups = {};
-  matches.forEach(p=>{const k=p.PRODUCT||p.product||'Otros';if(!groups[k])groups[k]=[];groups[k].push(p);});
+  matches.forEach(p=>{const k=p.PRODUCT||p.product||p.PRODUCT||p.product||'Otros';if(!groups[k])groups[k]=[];groups[k].push(p);});
   searchDropdown.innerHTML = Object.entries(groups).map(([grp,prods])=>`
     <div class="sd-group-header">${grp}</div>
     ${prods.map(p=>`<div class="sd-item" onclick="selectProduct('${p.code.replace(/'/g,"\'")}');searchInput.value='';searchDropdown.classList.remove('open');renderList()">

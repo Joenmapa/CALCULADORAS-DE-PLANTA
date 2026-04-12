@@ -701,8 +701,9 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
       const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
       brix = match ? parseFloat(match[1]) : 0;
     } else {
-      // polvos, aditivos, azúcar = 100% sólidos
-      brix = 100;
+      const desc = rm.DESCRIPTION || rm.description || '';
+      const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
+      brix = match ? parseFloat(match[1]) : 100;
     }
 
     if (brix <= 0) continue;
@@ -714,7 +715,7 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
     }
 
     totalSucroseKg += sucroseKg;
-    breakdown.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brix:rm.fc||rm.brix, sucroseKg });
+   breakdown.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brix, sucroseKg });
   }
 
   // Iterative batch_kg — actual batch volume is batchLT * ratio (both scale together)

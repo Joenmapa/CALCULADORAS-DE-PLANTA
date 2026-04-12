@@ -753,7 +753,9 @@ function calcJuicePct(recipe, batchLT, ratio) {
     const adjQty = stdQty * ratio;
     const qty_lb = toLb(adjQty, rm.UM||rm.unit);
 
-    const brixConc = rm.fc||rm.brix;
+   const desc = rm.DESCRIPTION || rm.description || '';
+const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
+const brixConc = match ? parseFloat(match[1]) : (rm.fc||rm.brix||0);
     const ssBrix = getSsBrix(rm.description);
 
     const densConc = brixToLbGal(brixConc);
@@ -920,7 +922,7 @@ function renderRecipeTable(){
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
         <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-        <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+        <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
         <td>${rm.UM||rm.unit||'—'}</td>
         <td style="text-align:right">
           <input type="number" class="qty-edit-input${isChanged||isAdded?' changed':''}" value="${currentQty}" step="any"
@@ -933,7 +935,7 @@ function renderRecipeTable(){
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
         <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-        <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+        <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
         <td>${rm.UM||rm.unit||'—'}</td>
         <td style="text-align:right;font-weight:600">${fmtN(stdQty)}</td>
       </tr>`;
@@ -1114,7 +1116,7 @@ function renderCalcResults(ratio,newB,stdB,ingInfo=null){
       <td class="font-mono" style="font-size:10px">${code}</td>
       <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
       <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-      <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+      <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
       <td>${rm.UM||rm.unit||'—'}</td>
       <td style="text-align:right">${fmtN(stdQty)}</td>
       <td style="text-align:right;font-weight:700">${fmtN(adjQty)}</td>
@@ -1467,7 +1469,7 @@ function renderVerifyRecipeTable(){
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
         <td>${matBadge(rm.MATERIAL||rm.material)}</td>
-        <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+        <td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td>
         <td>${rm.UM||rm.unit||'—'}</td>
         <td style="text-align:right">
           <input type="number" class="qty-edit-input" value="${qty}" step="any" style="width:90px"
@@ -1476,7 +1478,7 @@ function renderVerifyRecipeTable(){
         <td><button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:12px" onclick="removeVerifyIng('${code}')">✕</button></td>
       </tr>`;
     }
-    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td><td>${matBadge(rm.MATERIAL||rm.material)}</td><td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td><td>${rm.UM||rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
+    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td><td>${matBadge(rm.MATERIAL||rm.material)}</td><td style="text-align:right">${(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))>0?(d=>d?+d[1]:0)((rm.DESCRIPTION||'').match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i))+'°':'—'}</td><td>${rm.UM||rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
   }).join('');
 
   if(isEditing) makeIngSearch('verify-ing-search','verify-ing-list',

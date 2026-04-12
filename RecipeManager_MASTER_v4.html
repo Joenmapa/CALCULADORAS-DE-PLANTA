@@ -683,25 +683,25 @@ function calcDissolvedSolids(recipe, batchLT, ratio) {
 
   for (const [code, stdQty] of Object.entries(recipe)) {
     const rm = rmMap[code];
-    if (!rm || rm.brix <= 0) continue;
-    const mat = (rm.material||'').toUpperCase();
+    if (!rm || rm.fc||rm.brix <= 0) continue;
+    const mat = (rm.MATERIAL||rm.material||'').toUpperCase();
     if (PACK_MATS.has(mat)) continue;
 
     const adjQty = stdQty * ratio;
-    const unit = (rm.unit||'').toUpperCase();
+    const unit = (rm.UM||rm.unit||'').toUpperCase();
     let sucroseKg;
 
     // Your sheet uses: qty_lb * brix/100 * 0.453592  for LB-based ingredients
     // For KG/LT: qty_kg * brix/100
     if (unit === 'LB') {
-      sucroseKg = adjQty * (rm.brix/100) * 0.453592;
+      sucroseKg = adjQty * (rm.fc||rm.brix/100) * 0.453592;
     } else {
       // LT, KG, G, OZ -> convert to kg first
-      sucroseKg = toKg(adjQty, unit) * (rm.brix/100);
+      sucroseKg = toKg(adjQty, unit) * (rm.fc||rm.brix/100);
     }
 
     totalSucroseKg += sucroseKg;
-    breakdown.push({ code, rm, adjQty, unit:rm.unit, brix:rm.brix, sucroseKg });
+    breakdown.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brix:rm.fc||rm.brix, sucroseKg });
   }
 
   // Iterative batch_kg — actual batch volume is batchLT * ratio (both scale together)
@@ -733,13 +733,13 @@ function calcJuicePct(recipe, batchLT, ratio) {
 
   for (const [code, stdQty] of Object.entries(recipe)) {
     const rm = rmMap[code];
-    if (!rm || rm.brix <= 0) continue;
-    if (!CONC_MATS.has(rm.material)) continue;
+    if (!rm || rm.fc||rm.brix <= 0) continue;
+    if (!CONC_MATS.has(rm.MATERIAL||rm.material)) continue;
 
     const adjQty = stdQty * ratio;
-    const qty_lb = toLb(adjQty, rm.unit);
+    const qty_lb = toLb(adjQty, rm.UM||rm.unit);
 
-    const brixConc = rm.brix;
+    const brixConc = rm.fc||rm.brix;
     const ssBrix = getSsBrix(rm.description);
 
     const densConc = brixToLbGal(brixConc);
@@ -751,7 +751,7 @@ function calcJuicePct(recipe, batchLT, ratio) {
     const reconstGal = concGal * fold;
     totalReconst += reconstGal;
 
-    details.push({ code, rm, adjQty, unit:rm.unit, brixConc, ssBrix,
+    details.push({ code, rm, adjQty, unit:rm.UM||rm.unit, brixConc, ssBrix,
       densConc, solidConc, solidSS, fold, concGal, reconstGal, qty_lb });
   }
 
@@ -905,9 +905,9 @@ function renderRecipeTable(){
         <td class="td-radio"><input type="radio" class="pin-radio" name="pin-ing" value="${code}" ${pinnedIngredient===code?'checked':''} onchange="setPinned('${code}')"></td>
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
-        <td>${matBadge(rm.material)}</td>
-        <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
-        <td>${rm.unit||'—'}</td>
+        <td>${matBadge(rm.MATERIAL||rm.material)}</td>
+        <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+        <td>${rm.UM||rm.unit||'—'}</td>
         <td style="text-align:right">
           <input type="number" class="qty-edit-input${isChanged||isAdded?' changed':''}" value="${currentQty}" step="any"
             onchange="onQtyChange('${code}',this.value,${stdQty})" oninput="this.classList.add('changed')">
@@ -918,9 +918,9 @@ function renderRecipeTable(){
       return `<tr>
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
-        <td>${matBadge(rm.material)}</td>
-        <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
-        <td>${rm.unit||'—'}</td>
+        <td>${matBadge(rm.MATERIAL||rm.material)}</td>
+        <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+        <td>${rm.UM||rm.unit||'—'}</td>
         <td style="text-align:right;font-weight:600">${fmtN(stdQty)}</td>
       </tr>`;
     }
@@ -1024,8 +1024,8 @@ function updateCalcFromPin(){
   const rm=rmMap[pinnedIngredient]||{};
   const recipe=getEffectiveRecipe();
   const stdQty=recipe[pinnedIngredient]||0;
-  display.innerHTML=`<strong>${pinnedIngredient}</strong> — ${rm.description||''} <span style="color:var(--text3)">(std: ${fmtN(stdQty)} ${rm.unit||''})</span>`;
-  unitLabel.textContent=rm.unit||'—';
+  display.innerHTML=`<strong>${pinnedIngredient}</strong> — ${rm.description||''} <span style="color:var(--text3)">(std: ${fmtN(stdQty)} ${rm.UM||rm.unit||''})</span>`;
+  unitLabel.textContent=rm.UM||rm.unit||'—';
 }
 
 // ── CALC TAB ───────────────────────────────────────────────────────────────
@@ -1099,9 +1099,9 @@ function renderCalcResults(ratio,newB,stdB,ingInfo=null){
       <td class="td-radio"><input type="radio" class="pin-radio" name="calc-pin-ing" value="${code}" ${isPin?'checked':''} onchange="setPinned('${code}');switchResizeMode('ingredient')"></td>
       <td class="font-mono" style="font-size:10px">${code}</td>
       <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
-      <td>${matBadge(rm.material)}</td>
-      <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
-      <td>${rm.unit||'—'}</td>
+      <td>${matBadge(rm.MATERIAL||rm.material)}</td>
+      <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+      <td>${rm.UM||rm.unit||'—'}</td>
       <td style="text-align:right">${fmtN(stdQty)}</td>
       <td style="text-align:right;font-weight:700">${fmtN(adjQty)}</td>
       <td style="text-align:right;color:${Math.abs(delta)<0.01?'var(--text3)':delta>0?'var(--accent)':'var(--danger)'}">${scaleRatio!==1?dStr:'—'}</td>
@@ -1164,7 +1164,7 @@ function verifyRecipe(){
   // Brix breakdown table
   document.getElementById('verify-brix-body').innerHTML=breakdown.map(i=>{
     const pct=totalSucroseKg>0?(i.sucroseKg/totalSucroseKg*100):0;
-    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
+    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.MATERIAL||rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
   }).join('');
 
   // Juice % detail — EXACT method from your Goliath-Taoro sheets
@@ -1237,7 +1237,7 @@ function renderModalRecipe(){
     return`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
       <span class="font-mono" style="font-size:10px;min-width:65px">${code}</span>
       <span style="flex:1;font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</span>
-      <span style="font-size:11px;color:var(--text3);min-width:25px">${rm.unit||''}</span>
+      <span style="font-size:11px;color:var(--text3);min-width:25px">${rm.UM||rm.unit||''}</span>
       <input type="number" step="any" value="${qty}" style="width:90px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:right"
         onchange="modalRecipe['${code}']=parseFloat(this.value)||0">
       <button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:13px;padding:2px 5px" onclick="delete modalRecipe['${code}'];renderModalRecipe()">✕</button>
@@ -1452,9 +1452,9 @@ function renderVerifyRecipeTable(){
       return `<tr class="${verifyRecipeOverride?'changed-row':''}">
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
-        <td>${matBadge(rm.material)}</td>
-        <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
-        <td>${rm.unit||'—'}</td>
+        <td>${matBadge(rm.MATERIAL||rm.material)}</td>
+        <td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td>
+        <td>${rm.UM||rm.unit||'—'}</td>
         <td style="text-align:right">
           <input type="number" class="qty-edit-input" value="${qty}" step="any" style="width:90px"
             onchange="onVerifyQtyChange('${code}',this.value)">
@@ -1462,7 +1462,7 @@ function renderVerifyRecipeTable(){
         <td><button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:12px" onclick="removeVerifyIng('${code}')">✕</button></td>
       </tr>`;
     }
-    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td><td>${matBadge(rm.material)}</td><td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td><td>${rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
+    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td><td>${matBadge(rm.MATERIAL||rm.material)}</td><td style="text-align:right">${rm.fc||rm.brix>0?rm.fc||rm.brix+'°':'—'}</td><td>${rm.UM||rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
   }).join('');
 
   if(isEditing) makeIngSearch('verify-ing-search','verify-ing-list',
@@ -1550,7 +1550,7 @@ function verifyRecipe(){
 
   document.getElementById('verify-brix-body').innerHTML=breakdown.map(i=>{
     const pct=totalSucroseKg>0?(i.sucroseKg/totalSucroseKg*100):0;
-    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
+    return`<tr><td class="font-mono" style="font-size:10px">${i.code}</td><td style="font-size:11px">${i.rm.description||i.code}</td><td>${matBadge(i.rm.MATERIAL||rm.material)}</td><td style="text-align:right">${fmtN(i.adjQty)}</td><td>${i.unit}</td><td style="text-align:right;font-weight:700">${i.brix}°</td><td style="text-align:right">${i.sucroseKg.toFixed(3)}</td><td style="text-align:right">${pct.toFixed(1)}%</td></tr>`;
   }).join('');
 
   if(juiceDet.length){

@@ -784,7 +784,7 @@ function calcJuicePct(recipe, batchLT, ratio) {
     const brixConc = match ? parseFloat(match[1]) : 0;
     if (brixConc <= 0) continue;
 
-    const ssBrix = getSsBrix(rm.description);
+   const ssBrix = getSsBrix(rm.DESCRIPTION || rm.description || '');
     if (ssBrix <= 0) continue;
 
     const concData = getBrixData(brixConc);

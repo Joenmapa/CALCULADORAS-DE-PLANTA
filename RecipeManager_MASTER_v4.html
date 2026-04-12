@@ -747,15 +747,15 @@ function calcJuicePct(recipe, batchLT, ratio) {
 
   for (const [code, stdQty] of Object.entries(recipe)) {
     const rm = rmMap[code];
-    if (!rm || rm.fc||rm.brix <= 0) continue;
+    if (!rm) continue;
     if (!CONC_MATS.has(rm.MATERIAL||rm.material)) continue;
 
     const adjQty = stdQty * ratio;
     const qty_lb = toLb(adjQty, rm.UM||rm.unit);
 
-   const desc = rm.DESCRIPTION || rm.description || '';
-const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
-const brixConc = match ? parseFloat(match[1]) : (rm.fc||rm.brix||0);
+    const desc = rm.DESCRIPTION || rm.description || '';
+    const match = desc.match(/(\d+(?:\.\d+)?)\s*(?:bx|brix)/i);
+    const brixConc = match ? parseFloat(match[1]) : (rm.fc||rm.brix||0);
     const ssBrix = getSsBrix(rm.description);
 
     const densConc = brixToLbGal(brixConc);

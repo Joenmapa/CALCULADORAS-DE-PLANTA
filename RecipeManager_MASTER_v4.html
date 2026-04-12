@@ -1813,9 +1813,26 @@ async function loadFromServer() {
       const itemsArr     = Array.isArray(itemsData) ? itemsData : (itemsData.products || itemsData.items || []);
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
+      // Normalize items: server may use uppercase keys
+      const normalizedItems = itemsArr.map(p => ({
+        code: p.code || p.CODE || p.Code || '',
+        description: p.description || p.DESCRIPTION || p.Description || '',
+        brand: p.brand || p.BRAND || '',
+        product: p.product || p.PRODUCT || '',
+        flavor: p.flavor || p.FLAVOR || '',
+        unit: p.unit || p.UNIT || '',
+        net: p.net || p.NET || '',
+        units_pack: p.units_pack || p.UNITS_PACK || '',
+        dissolution: p.dissolution || p.DISSOLUTION || 1,
+        batch_size: p.batch_size || p.BATCH_SIZE || 0,
+        recipe: p.recipe || p.RECIPE || {},
+        attrs: p.attrs || p.ATTRS || {},
+        weekData: p.weekData || p.WEEK_DATA || {},
+        line: p.line || p.LINE || '',
+        ...p
+      }));
       // DB must have a .products array
-      if (Array.isArray(DB)) DB = { products: DB };
-      DB = { ...DB, products: itemsArr, rawMaterials: rawMaterials };
+      DB = { products: normalizedItems, rawMaterials: rawMaterials };
       rmMap = {};
       (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
       recipeMap = {};

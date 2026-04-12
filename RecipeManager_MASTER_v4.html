@@ -801,10 +801,7 @@ function calcJuicePct(recipe, batchLT, ratio) {
   const juicePct = batchGal > 0 ? (totalReconst / batchGal) * 100 : 0;
   return { juicePct, totalReconst, batchGal, details };
 }
-  const juicePct = batchGal > 0 ? (totalReconst / batchGal) * 100 : 0;
-  return { juicePct, totalReconst, batchGal, details };
-}
-
+ 
 // ── LOAD ───────────────────────────────────────────────────────────────────
 async function loadData(){
   DB = EMBEDDED_DATA;

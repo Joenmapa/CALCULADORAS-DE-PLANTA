@@ -904,7 +904,7 @@ function renderRecipeTable(){
       return `<tr class="${rowClass}">
         <td class="td-radio"><input type="radio" class="pin-radio" name="pin-ing" value="${code}" ${pinnedIngredient===code?'checked':''} onchange="setPinned('${code}')"></td>
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:12px">${rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
+        <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
         <td>${matBadge(rm.material)}</td>
         <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
         <td>${rm.unit||'—'}</td>
@@ -917,7 +917,7 @@ function renderRecipeTable(){
     }else{
       return `<tr>
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:12px">${rm.description||code}</td>
+        <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
         <td>${matBadge(rm.material)}</td>
         <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
         <td>${rm.unit||'—'}</td>
@@ -1098,7 +1098,7 @@ function renderCalcResults(ratio,newB,stdB,ingInfo=null){
     return `<tr style="${isPin?'background:var(--accent-light)':''}">
       <td class="td-radio"><input type="radio" class="pin-radio" name="calc-pin-ing" value="${code}" ${isPin?'checked':''} onchange="setPinned('${code}');switchResizeMode('ingredient')"></td>
       <td class="font-mono" style="font-size:10px">${code}</td>
-      <td style="font-size:12px">${rm.description||code}</td>
+      <td style="font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
       <td>${matBadge(rm.material)}</td>
       <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
       <td>${rm.unit||'—'}</td>
@@ -1236,7 +1236,7 @@ function renderModalRecipe(){
     const rm=rmMap[code]||{};
     return`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--border)">
       <span class="font-mono" style="font-size:10px;min-width:65px">${code}</span>
-      <span style="flex:1;font-size:12px">${rm.description||code}</span>
+      <span style="flex:1;font-size:12px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</span>
       <span style="font-size:11px;color:var(--text3);min-width:25px">${rm.unit||''}</span>
       <input type="number" step="any" value="${qty}" style="width:90px;padding:4px 7px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:right"
         onchange="modalRecipe['${code}']=parseFloat(this.value)||0">
@@ -1451,7 +1451,7 @@ function renderVerifyRecipeTable(){
     if(isEditing){
       return `<tr class="${verifyRecipeOverride?'changed-row':''}">
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:11px">${rm.description||code}</td>
+        <td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td>
         <td>${matBadge(rm.material)}</td>
         <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
         <td>${rm.unit||'—'}</td>
@@ -1462,7 +1462,7 @@ function renderVerifyRecipeTable(){
         <td><button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:12px" onclick="removeVerifyIng('${code}')">✕</button></td>
       </tr>`;
     }
-    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.description||code}</td><td>${matBadge(rm.material)}</td><td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td><td>${rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
+    return `<tr><td class="font-mono" style="font-size:10px">${code}</td><td style="font-size:11px">${rm.DESCRIPTION||rm.DESCRIPTION||rm.description||code}</td><td>${matBadge(rm.material)}</td><td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td><td>${rm.unit||'—'}</td><td style="text-align:right;font-weight:600">${fmtN(qty)}</td></tr>`;
   }).join('');
 
   if(isEditing) makeIngSearch('verify-ing-search','verify-ing-list',

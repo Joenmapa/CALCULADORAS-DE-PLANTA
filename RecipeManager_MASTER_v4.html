@@ -1810,10 +1810,12 @@ async function loadFromServer() {
       const rawMatsData  = await rawMatsRes.json();
 
       // Handle both array and wrapped response formats
-      const items       = Array.isArray(itemsData) ? itemsData : (itemsData.products || itemsData.items || []);
+      const itemsArr     = Array.isArray(itemsData) ? itemsData : (itemsData.products || itemsData.items || []);
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
-      DB = items || [];
+      // DB must have a .products array
+      if (Array.isArray(DB)) DB = { products: DB };
+      DB = { ...DB, products: itemsArr, rawMaterials: rawMaterials };
       rmMap = {};
       (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
       recipeMap = {};

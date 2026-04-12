@@ -1806,8 +1806,12 @@ async function loadFromServer() {
       if (!itemsRes.ok) throw new Error('/api/items: ' + itemsRes.status);
       if (!rawMatsRes.ok) throw new Error('/api/raw-materials: ' + rawMatsRes.status);
 
-      const items       = await itemsRes.json();
-      const rawMaterials = await rawMatsRes.json();
+      const itemsData    = await itemsRes.json();
+      const rawMatsData  = await rawMatsRes.json();
+
+      // Handle both array and wrapped response formats
+      const items       = Array.isArray(itemsData) ? itemsData : (itemsData.products || itemsData.items || []);
+      const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
       DB = items || [];
       rmMap = {};

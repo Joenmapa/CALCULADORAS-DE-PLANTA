@@ -844,7 +844,7 @@ function renderInfo(){
   badge.textContent=p.DISOLUTION||p.dissolution===1?'Disolución 1':'Jarabe 1+3';
   badge.className='badge '+(p.DISOLUTION||p.dissolution===1?'badge-diss1':'badge-diss4');
 
-  const fields=[['Brand',p.brand],['Producto',p.PRODUCT||p.product||p.PRODUCT||p.product],['Sabor',p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor],['Unidad',p.UNIT||p.unit],['Contenido',p.NET||p.net],['Uds/Pack',p.UNIT||p.UNITS_PACK||p.units_pack],['Disolución',p.DISOLUTION||p.dissolution],['Batch estándar',p.batch_size?p.batch_size.toLocaleString()+' LT':'—']];
+  const fields=[['Brand',p.brand],['Producto',p.PRODUCT||p.product||p.PRODUCT||p.product],['Sabor',p.FLAVORS||p.flavorS||p.FLAVORS||p.flavor],['Unidad',p.UNIT||p.unit],['Contenido',p.NET||p.net],['Uds/Pack',p.UNITS_PACK||p.units_pack],['Disolución',p.DISOLUTION||p.dissolution],['Batch estándar',p.batch_size?p.batch_size.toLocaleString()+' LT':'—']];
   document.getElementById('inf-general').innerHTML=fields.map(([l,v])=>`<div class="info-item"><label>${l}</label><span>${v||'—'}</span></div>`).join('');
 
   // Show live brix summary for this product at standard batch

@@ -1404,6 +1404,7 @@ function makeIngSearch(inputId, listId, onSelect, filterFn=null){
 let verifyRecipeOverride = null; // temporary recipe for verify tab
 let verifyEditMode = false;
 let verifyFixed = {}; // code -> true = scales with batch (default), false = free edit
+let verifyFixed = {}; // code -> true = scales with batch (default), false = free edit
 
 function renderVerify(){
   if(!currentProduct){document.getElementById('verify-empty').style.display='block';document.getElementById('verify-content').style.display='none';return;}

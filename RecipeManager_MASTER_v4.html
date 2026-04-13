@@ -870,7 +870,7 @@ function renderInfo(){
 
   const p=currentProduct;
   document.getElementById('inf-code').textContent=p.code;
-  document.getElementById('inf-desc').textContent=p.description;
+  document.getElementById('inf-desc').textContent=p.description+(p.flavor?' · '+p.flavor:'');
   const badge=document.getElementById('inf-diss-badge');
   badge.textContent=p.dissolution===1?'Disolución 1':'Jarabe 1+3';
   badge.className='badge '+(p.dissolution===1?'badge-diss1':'badge-diss4');
@@ -1262,7 +1262,7 @@ function openModal(editing=null){
   const brandSel = document.getElementById('f-brand');
   const brands = [...new Set(DB.products.map(p=>p.brand).filter(Boolean))].sort();
   brandSel.innerHTML = '<option value="">— Seleccionar —</option>' + brands.map(b=>`<option value="${b}">${b}</option>`).join('');
-  modalIngFilter = 'all';
+  modalIngFilters = { material: 'all', brand: 'all', owner: 'all' };
   buildModalIngFilters();
   document.getElementById('modal-title').textContent=editing?'Datos Generales — '+editing:'Nuevo Producto';
   if(editing){
@@ -1851,32 +1851,58 @@ function selectProduct(code){
 makeIngSearch('inline-ing-search','inline-ing-list',code=>{
   editedAdditions[code]=0;document.getElementById('inline-ing-search').value='';document.getElementById('inline-ing-list').style.display='none';renderRecipeTable();
 });
-// Modal ingredient search with material filter chips
-let modalIngFilter = 'all';
+// Modal ingredient filters: material + brand + owner
+let modalIngFilters = { material: 'all', brand: 'all', owner: 'all' };
 
 function buildModalIngFilters() {
-  const materials = [...new Set(DB.rawMaterials.map(r=>r.material).filter(Boolean))].sort();
   const wrap = document.getElementById('add-ing-material-filters');
   if (!wrap) return;
-  // Build chips via DOM to avoid quote conflicts
   wrap.innerHTML = '';
-  const allChip = document.createElement('span');
-  allChip.className = 'chip on';
-  allChip.textContent = 'Todos';
-  allChip.onclick = () => setModalIngFilter('all', allChip);
-  wrap.appendChild(allChip);
-  materials.forEach(m => {
-    const chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.textContent = m;
-    chip.onclick = () => setModalIngFilter(m, chip);
-    wrap.appendChild(chip);
-  });
+
+  function makeRow(label, values, key, colorClass='') {
+    if (!values.length) return;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;align-items:center';
+    const lbl = document.createElement('span');
+    lbl.style.cssText = 'font-size:10px;color:var(--text3);min-width:52px;font-weight:600;text-transform:uppercase;letter-spacing:.04em';
+    lbl.textContent = label;
+    row.appendChild(lbl);
+
+    const allChip = document.createElement('span');
+    allChip.className = 'chip on' + (colorClass ? ' '+colorClass : '');
+    allChip.textContent = 'Todos';
+    allChip.dataset.filterKey = key;
+    allChip.dataset.filterVal = 'all';
+    allChip.onclick = () => setModalIngFilter(key, 'all', allChip);
+    row.appendChild(allChip);
+
+    values.forEach(v => {
+      const chip = document.createElement('span');
+      chip.className = 'chip' + (colorClass ? ' '+colorClass : '');
+      chip.textContent = v;
+      chip.dataset.filterKey = key;
+      chip.dataset.filterVal = v;
+      chip.onclick = () => setModalIngFilter(key, v, chip);
+      row.appendChild(chip);
+    });
+    wrap.appendChild(row);
+  }
+
+  const materials = [...new Set(DB.rawMaterials.map(r=>r.material).filter(Boolean))].sort();
+  const brands    = [...new Set(DB.rawMaterials.map(r=>r.brand||r.BRAND).filter(Boolean))].sort();
+  const owners    = [...new Set(DB.rawMaterials.map(r=>r.owner||r.OWNER).filter(Boolean))].sort();
+
+  makeRow('Material', materials, 'material');
+  if (brands.length) makeRow('Brand', brands, 'brand', 'brand-chip');
+  if (owners.length) makeRow('Owner', owners, 'owner');
+
+  // reset active state
+  modalIngFilters = { material: 'all', brand: 'all', owner: 'all' };
 }
 
-function setModalIngFilter(mat, el) {
-  modalIngFilter = mat;
-  document.querySelectorAll('#add-ing-material-filters .chip').forEach(c=>c.classList.remove('on'));
+function setModalIngFilter(key, val, el) {
+  modalIngFilters[key] = val;
+  document.querySelectorAll(`#add-ing-material-filters [data-filter-key="${key}"]`).forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
   document.getElementById('add-ing-search').dispatchEvent(new Event('input'));
 }
@@ -1885,7 +1911,12 @@ makeIngSearch('add-ing-search','add-ing-list',code=>{
   if(!modalRecipe[code])modalRecipe[code]=0;renderModalRecipe();
   document.getElementById('add-ing-search').value='';
   document.getElementById('add-ing-list').style.display='none';
-}, r => modalIngFilter==='all' || r.material===modalIngFilter);
+}, r => {
+  if (modalIngFilters.material !== 'all' && r.material !== modalIngFilters.material) return false;
+  if (modalIngFilters.brand    !== 'all' && (r.brand||r.BRAND||'') !== modalIngFilters.brand)   return false;
+  if (modalIngFilters.owner    !== 'all' && (r.owner||r.OWNER||'') !== modalIngFilters.owner)   return false;
+  return true;
+});
 
 loadData();
  // ── Conexión al servidor local ──

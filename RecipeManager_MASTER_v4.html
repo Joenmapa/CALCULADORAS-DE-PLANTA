@@ -1815,7 +1815,7 @@ async function loadFromServer() {
 
       // Normalize items: server may use uppercase keys
       const normalizedItems = itemsArr.map(p => ({
-        code: p.code || p.CODE || p.Code || '',
+        code: String(p.code || p.CODE || p.Code || ''),
         description: p.description || p.DESCRIPTION || p.Description || '',
         brand: p.brand || p.BRAND || '',
         product: p.product || p.PRODUCT || '',

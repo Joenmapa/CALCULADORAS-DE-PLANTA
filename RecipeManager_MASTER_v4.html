@@ -1865,6 +1865,35 @@ async function loadFromServer() {
         line: p.line || p.LINE || '',
         ...p
       }));
+      // Load all recipes from /api/recipes
+      // Server returns: {"recipes": {"CODE": [{ingredient_code, quantity}, ...]}}
+      let recipesData = {};
+      try {
+        const recipesRes = await fetch(API_URL + '/recipes');
+        if (recipesRes.ok) {
+          const rd = await recipesRes.json();
+          const recipesObj = rd.recipes || rd;
+          Object.entries(recipesObj).forEach(([code, ings]) => {
+            if (!Array.isArray(ings)) return;
+            const recipeObj = {};
+            ings.forEach(ing => {
+              if (ing.ingredient_code) {
+                const qty = parseFloat(ing.quantity);
+                if (!isNaN(qty)) recipeObj[String(ing.ingredient_code)] = qty;
+              }
+            });
+            recipesData[String(code).trim()] = recipeObj;
+          });
+        }
+      } catch(e) { console.warn('Could not load recipes:', e); }
+
+      // Attach recipes to products
+      normalizedItems.forEach(p => {
+        if (recipesData[p.code] && Object.keys(recipesData[p.code]).length > 0) {
+          p.recipe = recipesData[p.code];
+        }
+      });
+
       // DB must have a .products array
       DB = { products: normalizedItems, rawMaterials: rawMaterials };
       rmMap = {};

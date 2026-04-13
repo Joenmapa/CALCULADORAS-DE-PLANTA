@@ -761,6 +761,9 @@ function calcJuicePct(recipe, batchLT, ratio) {
 }
 
 // ── LOAD ───────────────────────────────────────────────────────────────────
+let activeFilters = {diss:'all', brand:'all'};
+let planLineFilter = 'all';
+let planCurrentWeek = 14;
 async function loadData(){
   DB = EMBEDDED_DATA;
   rmMap = {};
@@ -1307,8 +1310,6 @@ loadData();
 // ── V4 OVERRIDES & NEW FEATURES ────────────────────────────────────────────
 
 // ── SMART SEARCH DROPDOWN ──────────────────────────────────────────────────
-let activeFilters = {diss:'all', brand:'all'};
-let planLineFilter = 'all';
 
 // Override loadData to use new data structure
 async function loadData(){
@@ -1707,7 +1708,6 @@ function saveAttrs(){
 }
 
 // ── PLANNING GRID ──────────────────────────────────────────────────────────
-let planCurrentWeek = 14;
 
 function renderPlanningGrid(){
   const filterLine = planLineFilter;

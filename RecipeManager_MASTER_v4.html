@@ -1892,10 +1892,24 @@ async function loadFromServer() {
         }
       });
 
+      // Normalize raw materials: map UPPERCASE fields, extract brix from description
+      const normalizedRawMats = (rawMaterials || []).map(r => {
+        const desc = r.DESCRIPTION || r.description || '';
+        const brixMatch = desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i);
+        const brix = brixMatch ? parseFloat(brixMatch[1]) : 0;
+        return {
+          code: String(r.CODE !== undefined ? r.CODE : (r.code || '')),
+          description: desc,
+          material: r.MATERIAL || r.material || '',
+          unit: r.UM || r.unit || '',
+          brix: brix,
+        };
+      });
+
       // DB must have a .products array
-      DB = { products: normalizedItems, rawMaterials: rawMaterials };
+      DB = { products: normalizedItems, rawMaterials: normalizedRawMats };
       rmMap = {};
-      (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
+      normalizedRawMats.forEach(r => { if(r.code) rmMap[String(r.code)] = r; });
       recipeMap = {};
       renderList();
       document.getElementById('loading').style.display = 'none';

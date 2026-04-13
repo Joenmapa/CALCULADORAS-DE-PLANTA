@@ -1947,43 +1947,34 @@ async function loadFromServer() {
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
       // Normalize items — server sends exact Excel column names (uppercase)
-      const normalizedItems = itemsArr.map(p => ({
-        ...p,
-        code:        String(p.CODE || p.code || p.Code || '').trim(),
-        description: (p.DESCRIPTION || p.description || p.Description || '').trim(),
-        brand:       (p.BRAND || p.brand || '').trim(),
-        owner:       (p.OWNER || p.owner || '').trim(),
-        product:     (p.PRODUCT || p.product || '').trim(),
-        // Server has a typo: DISOLUTION (one S) — handle both
-        dissolution: parseInt(p.DISOLUTION || p.DISSOLUTION || p.dissolution || p.disolution || 1) || 1,
-        // Flavor column is called FLAVORS in the server
-        flavor:      (p.FLAVORS || p.FLAVOR || p.flavor || p.SABOR || p.sabor || '').trim(),
-        unit:        (p.UNIT || p.unit || '').trim(),
-        net:         p.NET || p.net || '',
-        units_pack:  p.UNITS_PACK || p.units_pack || '',
-        batch_size:  parseFloat(p.BATCH_SIZE || p.batch_size) || 0,
-        line:        (p['LINE 1'] || p.LINE || p.line || '').trim(),
-        recipe:      p.recipe || p.RECIPE || {},
-        attrs:       p.attrs || p.ATTRS || {
-          // Pre-populate attrs from the rich server fields
-          printCode1:    p.PRINT_CODE_1 || '',
-          printCode2:    p.PRINT_CODE_2 || '',
-          printCode3:    p.PRINT_CODE_3 || '',
-          printCode4:    p.PRINT_CODE_4 || '',
-          shrinkCaseSize: p.SRINK_SIZE || '',
-          casesPallet:   p.CASES_PALLET || '',
-          palletLayers:  p.PALLET_LAYERS || '',
-          palletPattern: p.PALLET_PATTERN || '',
-          casePattern:   p.CASE_PATTERN || '',
-          palletType:    p['PALLET TYPE'] || '',
-          topSheet:      p['TOP SHEET'] || '',
-          bottomSheet:   p['BOTTON SHEET'] || '',
-          stdSpeed:      p['STD_SPEED (CxM)'] || '',
-          line:          p['LINE 1'] || '',
-          barcodeMsg:    p['BAR CODE'] || '',
-        },
-        weekData:    p.weekData || p.WEEK_DATA || {},
-      }));
+      const normalizedItems = itemsArr.map(p => {
+        try {
+          const g = (k, ...alts) => { for(const a of [k,...alts]){ if(p[a]!=null && p[a]!=='') return p[a]; } return ''; };
+          return {
+            ...p,
+            code:        String(g('CODE','code','Code')).trim(),
+            description: String(g('DESCRIPTION','description','Description')).trim(),
+            brand:       String(g('BRAND','brand')).trim(),
+            owner:       String(g('OWNER','owner')).trim(),
+            product:     String(g('PRODUCT','product')).trim(),
+            dissolution: parseInt(g('DISOLUTION','DISSOLUTION','dissolution','disolution')) || 1,
+            flavor:      String(g('FLAVORS','FLAVOR','flavor','SABOR','sabor')).trim(),
+            unit:        String(g('UNIT','unit')).trim(),
+            net:         g('NET','net'),
+            units_pack:  g('UNITS_PACK','units_pack'),
+            batch_size:  parseFloat(g('BATCH_SIZE','batch_size')) || 0,
+            line:        String(g('LINE 1','LINE','line')).trim(),
+            recipe:      p.recipe || p.RECIPE || {},
+            attrs:       p.attrs || p.ATTRS || {},
+            weekData:    p.weekData || p.WEEK_DATA || {},
+          };
+        } catch(err) {
+          console.warn('Error normalizing item:', p, err);
+          return { code: String(p.CODE||p.code||''), description: String(p.DESCRIPTION||p.description||''),
+                   brand:'', owner:'', product:'', dissolution:1, flavor:'', unit:'',
+                   net:'', units_pack:'', batch_size:0, line:'', recipe:{}, attrs:{}, weekData:{} };
+        }
+      });
       // Load all recipes from /api/recipes
       // Server returns: {"recipes": {"CODE": [{ingredient_code, quantity}, ...]}}
       let recipesData = {};

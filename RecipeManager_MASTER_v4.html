@@ -586,11 +586,14 @@ input[type=radio].pin-radio{width:14px;height:14px;accent-color:var(--accent);cu
       <div class="form-row"><label>Batch estándar (LT)</label><input id="f-batch" type="number" step="any"></div>
     </div>
     <div style="border-top:1px solid var(--border);margin:14px 0"></div>
-    <h3 style="margin-bottom:10px">Ingredientes</h3>
+    <h3 style="margin-bottom:8px">Ingredientes</h3>
     <div id="modal-recipe-list"></div>
-    <div class="autocomplete-wrap" style="margin-top:8px">
-      <input type="text" id="add-ing-search" placeholder="Agregar ingrediente..." style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px">
-      <div class="autocomplete-list" id="add-ing-list" style="display:none"></div>
+    <div style="margin-top:8px">
+      <div id="add-ing-material-filters" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
+      <div class="autocomplete-wrap">
+        <input type="text" id="add-ing-search" placeholder="Buscar por nombre o código..." style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px">
+        <div class="autocomplete-list" id="add-ing-list" style="display:none"></div>
+      </div>
     </div>
     <div class="flex" style="margin-top:14px;gap:8px">
       <button class="btn btn-primary" onclick="saveProduct()">Guardar</button>
@@ -627,6 +630,30 @@ function brixToLbGal(brix) {
 }
 function brixToKgL(brix) {
   return brixToLbGal(brix) / 8.3454;
+}
+
+// Calculate real batch LT from recipe ingredients (sum of liquid/solid mass -> LT)
+// Excludes packaging materials. Uses density at calculated brix iteratively.
+function calcRealBatchLT(recipe) {
+  const PACK_MATS = new Set(['CARDBOARD','LABEL','STRAW','STICKERS','SHRINK PACK',
+    'SHRINK CASE','STRETCH','PALLET','SHEETS','ADDITIONAL','RECAP','CAP','PREFORM','PAPER','UN']);
+  let totalKg = 0;
+  for (const [code, qty] of Object.entries(recipe)) {
+    const rm = rmMap[code] || {};
+    const mat = (rm.material||'').toUpperCase();
+    const unit = (rm.unit||'').toUpperCase();
+    if (PACK_MATS.has(mat) || unit === 'UN') continue;
+    totalKg += toKg(qty, unit);
+  }
+  // Estimate LT using density at ~13 brix as starting point, then iterate
+  let brix = 13;
+  let batchLT = totalKg / brixToKgL(brix);
+  for (let i = 0; i < 3; i++) {
+    const { batchBrix } = calcDissolvedSolids(recipe, batchLT, 1);
+    brix = batchBrix || brix;
+    batchLT = totalKg / brixToKgL(brix);
+  }
+  return { batchLT, totalKg };
 }
 
 // Single-strength brix by fruit (CODEX Alimentarius / FDA 21 CFR)
@@ -1235,6 +1262,8 @@ function openModal(editing=null){
   const brandSel = document.getElementById('f-brand');
   const brands = [...new Set(DB.products.map(p=>p.brand).filter(Boolean))].sort();
   brandSel.innerHTML = '<option value="">— Seleccionar —</option>' + brands.map(b=>`<option value="${b}">${b}</option>`).join('');
+  modalIngFilter = 'all';
+  buildModalIngFilters();
   document.getElementById('modal-title').textContent=editing?'Datos Generales — '+editing:'Nuevo Producto';
   if(editing){
     const p=DB.products.find(x=>x.code===editing);
@@ -1547,11 +1576,16 @@ function saveVerifyEditsToRecipe(){
 // Override verifyRecipe to use getVerifyRecipe()
 function verifyRecipe(){
   const p=currentProduct;if(!p)return;
-  const batchLT=parseFloat(document.getElementById('v-batch').value)||p.batch_size;
   const brixTarget=parseFloat(document.getElementById('v-brix-target').value)||null;
   const juiceTarget=parseFloat(document.getElementById('v-juice-target').value)||null;
   const tol=parseFloat(document.getElementById('v-tol').value)||5;
   const recipe=getVerifyRecipe();
+
+  // Calculate real batch from ingredients (not the manual input)
+  const { batchLT: calcBatchLT, totalKg: calcTotalKg } = calcRealBatchLT(recipe);
+  const batchLT = calcBatchLT;
+  // Update the batch field to show calculated value
+  document.getElementById('v-batch').value = batchLT.toFixed(0);
 
   const { totalSucroseKg, batchBrix, batchKg, breakdown } = calcDissolvedSolids(recipe, batchLT, 1);
   const beverageBrix = p.dissolution===1 ? batchBrix : batchBrix/4;
@@ -1564,7 +1598,7 @@ function verifyRecipe(){
   document.getElementById('verify-save-bar').style.display = verifyRecipeOverride?'block':'none';
 
   document.getElementById('verify-metrics').innerHTML=`
-    <div class="metric"><label>Batch</label><div class="val">${batchLT.toLocaleString()} LT</div></div>
+    <div class="metric accent-card"><label>Batch calculado</label><div class="val">${batchLT.toFixed(0)} LT</div><div class="sub">${calcTotalKg.toFixed(0)} kg total</div></div>
     <div class="metric ${brixOk===true?'accent-card':''}"><label>${p.dissolution===4?'Brix jarabe':'Brix / S.D.'}</label><div class="val ${brixOk===true?'ok':brixOk===false?'bad':''}">${batchBrix.toFixed(2)}°Bx</div>${p.dissolution===4?`<div class="sub">Bebida: ${beverageBrix.toFixed(2)}°</div>`:''}</div>
     <div class="metric"><label>Sólidos disueltos</label><div class="val">${totalSucroseKg.toFixed(1)} kg</div></div>
     <div class="metric"><label>Masa batch</label><div class="val">${batchKg.toFixed(0)} kg</div></div>
@@ -1817,9 +1851,29 @@ function selectProduct(code){
 makeIngSearch('inline-ing-search','inline-ing-list',code=>{
   editedAdditions[code]=0;document.getElementById('inline-ing-search').value='';document.getElementById('inline-ing-list').style.display='none';renderRecipeTable();
 });
+// Modal ingredient search with material filter chips
+let modalIngFilter = 'all';
+
+function buildModalIngFilters() {
+  const materials = [...new Set(DB.rawMaterials.map(r=>r.material).filter(Boolean))].sort();
+  const wrap = document.getElementById('add-ing-material-filters');
+  if (!wrap) return;
+  wrap.innerHTML = '<span class="chip on" data-mf="all" onclick="setModalIngFilter('all',this)">Todos</span>' +
+    materials.map(m => `<span class="chip" data-mf="${m}" onclick="setModalIngFilter('${m}',this)">${m}</span>`).join('');
+}
+
+function setModalIngFilter(mat, el) {
+  modalIngFilter = mat;
+  document.querySelectorAll('#add-ing-material-filters .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('add-ing-search').dispatchEvent(new Event('input'));
+}
+
 makeIngSearch('add-ing-search','add-ing-list',code=>{
-  if(!modalRecipe[code])modalRecipe[code]=0;renderModalRecipe();document.getElementById('add-ing-search').value='';document.getElementById('add-ing-list').style.display='none';
-});
+  if(!modalRecipe[code])modalRecipe[code]=0;renderModalRecipe();
+  document.getElementById('add-ing-search').value='';
+  document.getElementById('add-ing-list').style.display='none';
+}, r => modalIngFilter==='all' || r.material===modalIngFilter);
 
 loadData();
  // ── Conexión al servidor local ──

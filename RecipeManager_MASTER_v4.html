@@ -1858,8 +1858,20 @@ function buildModalIngFilters() {
   const materials = [...new Set(DB.rawMaterials.map(r=>r.material).filter(Boolean))].sort();
   const wrap = document.getElementById('add-ing-material-filters');
   if (!wrap) return;
-  wrap.innerHTML = '<span class="chip on" data-mf="all" onclick="setModalIngFilter(&quot;all&quot;,this)">Todos</span>' +
-    materials.map(m => `<span class="chip" data-mf="${m}" onclick="setModalIngFilter(&quot;${m}&quot;,this)">${m}</span>`).join('');
+  // Build chips via DOM to avoid quote conflicts
+  wrap.innerHTML = '';
+  const allChip = document.createElement('span');
+  allChip.className = 'chip on';
+  allChip.textContent = 'Todos';
+  allChip.onclick = () => setModalIngFilter('all', allChip);
+  wrap.appendChild(allChip);
+  materials.forEach(m => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = m;
+    chip.onclick = () => setModalIngFilter(m, chip);
+    wrap.appendChild(chip);
+  });
 }
 
 function setModalIngFilter(mat, el) {

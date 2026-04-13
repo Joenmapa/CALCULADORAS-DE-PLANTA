@@ -1944,8 +1944,10 @@ async function loadFromServer() {
       // Debug: log first item/rawmat keys so we can see exact field names from server
       if (itemsArr.length) console.log('[RecipeManager] First ITEM keys:', Object.keys(itemsArr[0]));
       if (rawMaterials.length) console.log('[RecipeManager] First RAWMAT keys:', Object.keys(rawMaterials[0]));
+      console.log('[STEP] 1 - arrays loaded, items:', itemsArr.length, 'rawMats:', rawMaterials.length);
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
+      console.log('[STEP] 2 - starting normalizedItems');
       // Normalize items — server sends exact Excel column names (uppercase)
       const normalizedItems = itemsArr.map(p => {
         try {
@@ -1975,6 +1977,7 @@ async function loadFromServer() {
                    net:'', units_pack:'', batch_size:0, line:'', recipe:{}, attrs:{}, weekData:{} };
         }
       });
+      console.log('[STEP] 3 - normalizedItems done, count:', normalizedItems.length);
       // Load all recipes from /api/recipes
       // Server returns: {"recipes": {"CODE": [{ingredient_code, quantity}, ...]}}
       let recipesData = {};
@@ -2004,6 +2007,7 @@ async function loadFromServer() {
         }
       });
 
+      console.log('[STEP] 4 - starting rawMats normalization');
       // Normalize raw materials: map UPPERCASE fields, extract brix from description
       const normalizedRawMats = (rawMaterials || []).filter(r => {
         // Skip completely empty rows (no code and no description)
@@ -2041,6 +2045,7 @@ async function loadFromServer() {
         };
       }).filter(Boolean);
 
+      console.log('[STEP] 5 - rawMats normalized, count:', normalizedRawMats.length);
       // Post-process rawMats: extract brand from description + normalize material casing
       // Works on both the normalized array AND the original server objects
       const brandRe = /-\s*([A-Za-z0-9][A-Za-z0-9 &/.]*?)\s*$/;
@@ -2053,6 +2058,7 @@ async function loadFromServer() {
       });
       console.log('[RM] sample brand:', normalizedRawMats[0] && normalizedRawMats[0].brand);
 
+      console.log('[STEP] 6 - post-process done, assigning DB');
       // DB must have a .products array
       DB = { products: normalizedItems, rawMaterials: normalizedRawMats };
       rmMap = {};

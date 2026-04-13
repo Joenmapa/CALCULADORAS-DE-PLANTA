@@ -870,7 +870,7 @@ function renderInfo(){
 
   const p=currentProduct;
   document.getElementById('inf-code').textContent=p.code;
-  document.getElementById('inf-desc').textContent=p.description+(p.flavor?' · '+p.flavor:'');
+  document.getElementById('inf-desc').textContent=p.description;
   const badge=document.getElementById('inf-diss-badge');
   badge.textContent=p.dissolution===1?'Disolución 1':'Jarabe 1+3';
   badge.className='badge '+(p.dissolution===1?'badge-diss1':'badge-diss4');
@@ -1262,7 +1262,7 @@ function openModal(editing=null){
   const brandSel = document.getElementById('f-brand');
   const brands = [...new Set(DB.products.map(p=>p.brand).filter(Boolean))].sort();
   brandSel.innerHTML = '<option value="">— Seleccionar —</option>' + brands.map(b=>`<option value="${b}">${b}</option>`).join('');
-  modalIngFilters = { material: 'all', brand: 'all', owner: 'all' };
+  modalIngFilter = 'all';
   buildModalIngFilters();
   document.getElementById('modal-title').textContent=editing?'Datos Generales — '+editing:'Nuevo Producto';
   if(editing){
@@ -1420,8 +1420,7 @@ function makeIngSearch(inputId, listId, onSelect, filterFn=null){
     lst.innerHTML = Object.entries(groups).map(([grp,rms])=>`
       <div class="sd-group-header">${grp}</div>
       ${rms.slice(0,8).map(r=>`<div class="autocomplete-item" onclick="(${onSelect.toString()})('${r.code}')">
-        <span class="ac-code">${r.code}</span>
-        <span class="ac-mat">${[r.brand,r.owner].filter(Boolean).join(' · ')}${r.brix>0?' '+r.brix+'°Bx':''}</span><br>
+        <span class="ac-code">${r.code}</span><span class="ac-mat">${r.brix>0?r.brix+'°Bx':''}</span><br>
         <span>${r.description}</span>
       </div>`).join('')}`).join('');
     lst.style.display=matches.length?'block':'none';
@@ -1852,58 +1851,32 @@ function selectProduct(code){
 makeIngSearch('inline-ing-search','inline-ing-list',code=>{
   editedAdditions[code]=0;document.getElementById('inline-ing-search').value='';document.getElementById('inline-ing-list').style.display='none';renderRecipeTable();
 });
-// Modal ingredient filters: material + brand + owner
-let modalIngFilters = { material: 'all', brand: 'all', owner: 'all' };
+// Modal ingredient search with material filter chips
+let modalIngFilter = 'all';
 
 function buildModalIngFilters() {
+  const materials = [...new Set(DB.rawMaterials.map(r=>r.material).filter(Boolean))].sort();
   const wrap = document.getElementById('add-ing-material-filters');
   if (!wrap) return;
+  // Build chips via DOM to avoid quote conflicts
   wrap.innerHTML = '';
-
-  function makeRow(label, values, key, colorClass='') {
-    if (!values.length) return;
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;align-items:center';
-    const lbl = document.createElement('span');
-    lbl.style.cssText = 'font-size:10px;color:var(--text3);min-width:52px;font-weight:600;text-transform:uppercase;letter-spacing:.04em';
-    lbl.textContent = label;
-    row.appendChild(lbl);
-
-    const allChip = document.createElement('span');
-    allChip.className = 'chip on' + (colorClass ? ' '+colorClass : '');
-    allChip.textContent = 'Todos';
-    allChip.dataset.filterKey = key;
-    allChip.dataset.filterVal = 'all';
-    allChip.onclick = () => setModalIngFilter(key, 'all', allChip);
-    row.appendChild(allChip);
-
-    values.forEach(v => {
-      const chip = document.createElement('span');
-      chip.className = 'chip' + (colorClass ? ' '+colorClass : '');
-      chip.textContent = v;
-      chip.dataset.filterKey = key;
-      chip.dataset.filterVal = v;
-      chip.onclick = () => setModalIngFilter(key, v, chip);
-      row.appendChild(chip);
-    });
-    wrap.appendChild(row);
-  }
-
-  const materials = [...new Set(DB.rawMaterials.map(r=>r.material).filter(Boolean))].sort();
-  const brands    = [...new Set(DB.rawMaterials.map(r=>r.brand||r.BRAND).filter(Boolean))].sort();
-  const owners    = [...new Set(DB.rawMaterials.map(r=>r.owner||r.OWNER).filter(Boolean))].sort();
-
-  makeRow('Material', materials, 'material');
-  if (brands.length) makeRow('Brand', brands, 'brand', 'brand-chip');
-  if (owners.length) makeRow('Owner', owners, 'owner');
-
-  // reset active state
-  modalIngFilters = { material: 'all', brand: 'all', owner: 'all' };
+  const allChip = document.createElement('span');
+  allChip.className = 'chip on';
+  allChip.textContent = 'Todos';
+  allChip.onclick = () => setModalIngFilter('all', allChip);
+  wrap.appendChild(allChip);
+  materials.forEach(m => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = m;
+    chip.onclick = () => setModalIngFilter(m, chip);
+    wrap.appendChild(chip);
+  });
 }
 
-function setModalIngFilter(key, val, el) {
-  modalIngFilters[key] = val;
-  document.querySelectorAll(`#add-ing-material-filters [data-filter-key="${key}"]`).forEach(c=>c.classList.remove('on'));
+function setModalIngFilter(mat, el) {
+  modalIngFilter = mat;
+  document.querySelectorAll('#add-ing-material-filters .chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
   document.getElementById('add-ing-search').dispatchEvent(new Event('input'));
 }
@@ -1912,12 +1885,7 @@ makeIngSearch('add-ing-search','add-ing-list',code=>{
   if(!modalRecipe[code])modalRecipe[code]=0;renderModalRecipe();
   document.getElementById('add-ing-search').value='';
   document.getElementById('add-ing-list').style.display='none';
-}, r => {
-  if (modalIngFilters.material !== 'all' && r.material !== modalIngFilters.material) return false;
-  if (modalIngFilters.brand    !== 'all' && (r.brand||r.BRAND||'') !== modalIngFilters.brand)   return false;
-  if (modalIngFilters.owner    !== 'all' && (r.owner||r.OWNER||'') !== modalIngFilters.owner)   return false;
-  return true;
-});
+}, r => modalIngFilter==='all' || r.material===modalIngFilter);
 
 loadData();
  // ── Conexión al servidor local ──
@@ -1942,42 +1910,25 @@ async function loadFromServer() {
       // Handle both array and wrapped response formats
       const itemsArr     = Array.isArray(itemsData) ? itemsData : (itemsData.products || itemsData.items || []);
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
-      // Debug: log first item/rawmat keys so we can see exact field names from server
-      if (itemsArr.length) console.log('[RecipeManager] First ITEM keys:', Object.keys(itemsArr[0]));
-      if (rawMaterials.length) console.log('[RecipeManager] First RAWMAT keys:', Object.keys(rawMaterials[0]));
-      console.log('[STEP] 1 - arrays loaded, items:', itemsArr.length, 'rawMats:', rawMaterials.length);
 
-      console.log('[STEP] 2 - starting normalizedItems');
-      // Normalize items — server sends exact Excel column names (uppercase)
-      const normalizedItems = itemsArr.map(p => {
-        try {
-          const g = (k, ...alts) => { for(const a of [k,...alts]){ if(p[a]!=null && p[a]!=='') return p[a]; } return ''; };
-          return {
-            ...p,
-            code:        String(g('CODE','code','Code')).trim(),
-            description: String(g('DESCRIPTION','description','Description')).trim(),
-            brand:       String(g('BRAND','brand')).trim(),
-            owner:       String(g('OWNER','owner')).trim(),
-            product:     String(g('PRODUCT','product')).trim(),
-            dissolution: parseInt(g('DISOLUTION','DISSOLUTION','dissolution','disolution')) || 1,
-            flavor:      String(g('FLAVORS','FLAVOR','flavor','SABOR','sabor')).trim(),
-            unit:        String(g('UNIT','unit')).trim(),
-            net:         g('NET','net'),
-            units_pack:  g('UNITS_PACK','units_pack'),
-            batch_size:  parseFloat(g('BATCH_SIZE','batch_size')) || 0,
-            line:        String(g('LINE 1','LINE','line')).trim(),
-            recipe:      p.recipe || p.RECIPE || {},
-            attrs:       p.attrs || p.ATTRS || {},
-            weekData:    p.weekData || p.WEEK_DATA || {},
-          };
-        } catch(err) {
-          console.warn('Error normalizing item:', p, err);
-          return { code: String(p.CODE||p.code||''), description: String(p.DESCRIPTION||p.description||''),
-                   brand:'', owner:'', product:'', dissolution:1, flavor:'', unit:'',
-                   net:'', units_pack:'', batch_size:0, line:'', recipe:{}, attrs:{}, weekData:{} };
-        }
-      });
-      console.log('[STEP] 3 - normalizedItems done, count:', normalizedItems.length);
+      // Normalize items: server may use uppercase keys
+      const normalizedItems = itemsArr.map(p => ({
+        code: String(p.code || p.CODE || p.Code || ''),
+        description: p.description || p.DESCRIPTION || p.Description || '',
+        brand: p.brand || p.BRAND || '',
+        product: p.product || p.PRODUCT || '',
+        flavor: p.flavor || p.FLAVOR || '',
+        unit: p.unit || p.UNIT || '',
+        net: p.net || p.NET || '',
+        units_pack: p.units_pack || p.UNITS_PACK || '',
+        dissolution: p.dissolution || p.DISSOLUTION || 1,
+        batch_size: p.batch_size || p.BATCH_SIZE || 0,
+        recipe: p.recipe || p.RECIPE || {},
+        attrs: p.attrs || p.ATTRS || {},
+        weekData: p.weekData || p.WEEK_DATA || {},
+        line: p.line || p.LINE || '',
+        ...p
+      }));
       // Load all recipes from /api/recipes
       // Server returns: {"recipes": {"CODE": [{ingredient_code, quantity}, ...]}}
       let recipesData = {};
@@ -2007,58 +1958,20 @@ async function loadFromServer() {
         }
       });
 
-      console.log('[STEP] 4 - starting rawMats normalization');
       // Normalize raw materials: map UPPERCASE fields, extract brix from description
-      const normalizedRawMats = (rawMaterials || []).filter(r => {
-        // Skip completely empty rows (no code and no description)
-        const hasCode = r.CODE || r.code;
-        const hasDesc = r.DESCRIPTION || r.description;
-        return hasCode || hasDesc;
-      }).map(r => {
-        const desc = (r.DESCRIPTION || r.description || '').trim();
-        // Brix: prefer explicit 'fc' column, fallback to parsing description
-        const brixCol = parseFloat(r.fc || r.FC || r.brix || r.BRIX || 0);
-        const brixMatch = !brixCol ? desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i) : null;
-        const brix = brixCol || (brixMatch ? parseFloat(brixMatch[1]) : 0);
-        // Normalize material casing — server has mixed case (Concentrate / CONCENTRATE)
-        const material = (r.MATERIAL || r.material || '').trim().toUpperCase();
-        const code = String(r.CODE !== undefined ? r.CODE : (r.code || '')).trim();
-        if (!code) return null; // will be filtered below
-        // Extract brand from description: last "- BRAND" segment at end of string
-        // e.g. "1 -32PK 200ML WHITE TRAY - LAKEWOOD" → "LAKEWOOD"
-        // e.g. "876 -NAT. CREAM SODA FLAVOR- CRIPTO"  → "CRIPTO"
-        // e.g. "P0009 -GOLIATH Apple Nectar 1000 ML -GO" → "GO"
-        let brand = (r.BRAND || r.brand || '').toString().trim();
-        if (!brand) {
-          const brandMatch = desc.match(/-\s*([A-Za-z0-9][A-Za-z0-9 &/\.]*?)\s*$/);
-          if (brandMatch) brand = brandMatch[1].trim();
-        }
+      const normalizedRawMats = (rawMaterials || []).map(r => {
+        const desc = r.DESCRIPTION || r.description || '';
+        const brixMatch = desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i);
+        const brix = brixMatch ? parseFloat(brixMatch[1]) : 0;
         return {
-          code,
+          code: String(r.CODE !== undefined ? r.CODE : (r.code || '')),
           description: desc,
-          material,
-          unit:  (r.UM || r.unit || '').trim(),
-          brix,
-          brand,
-          owner: (r.OWNER || r.owner || '').toString().trim(),
-          type:  (r.TYPE || r.type || '').toString().trim(),
+          material: r.MATERIAL || r.material || '',
+          unit: r.UM || r.unit || '',
+          brix: brix,
         };
-      }).filter(Boolean);
-
-      console.log('[STEP] 5 - rawMats normalized, count:', normalizedRawMats.length);
-      // Post-process rawMats: extract brand from description + normalize material casing
-      // Works on both the normalized array AND the original server objects
-      const brandRe = /-\s*([A-Za-z0-9][A-Za-z0-9 &/.]*?)\s*$/;
-      normalizedRawMats.forEach(r => {
-        if (!r.brand) {
-          const m = brandRe.exec(r.description || '');
-          r.brand = m ? m[1].trim() : '';
-        }
-        r.material = (r.material || '').trim().toUpperCase();
       });
-      console.log('[RM] sample brand:', normalizedRawMats[0] && normalizedRawMats[0].brand);
 
-      console.log('[STEP] 6 - post-process done, assigning DB');
       // DB must have a .products array
       DB = { products: normalizedItems, rawMaterials: normalizedRawMats };
       rmMap = {};

@@ -1301,12 +1301,15 @@ function deleteCurrentProduct(){
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
-let activeFilters = {diss:'all', brand:'all'};
-let planLineFilter = 'all';
 loadData();
+
+
 // ── V4 OVERRIDES & NEW FEATURES ────────────────────────────────────────────
 
 // ── SMART SEARCH DROPDOWN ──────────────────────────────────────────────────
+let activeFilters = {diss:'all', brand:'all'};
+let planLineFilter = 'all';
+
 // Override loadData to use new data structure
 async function loadData(){
   DB = APP_DATA;

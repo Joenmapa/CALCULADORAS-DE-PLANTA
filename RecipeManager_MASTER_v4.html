@@ -1420,7 +1420,8 @@ function makeIngSearch(inputId, listId, onSelect, filterFn=null){
     lst.innerHTML = Object.entries(groups).map(([grp,rms])=>`
       <div class="sd-group-header">${grp}</div>
       ${rms.slice(0,8).map(r=>`<div class="autocomplete-item" onclick="(${onSelect.toString()})('${r.code}')">
-        <span class="ac-code">${r.code}</span><span class="ac-mat">${r.brix>0?r.brix+'°Bx':''}</span><br>
+        <span class="ac-code">${r.code}</span>
+        <span class="ac-mat">${[r.brand,r.owner].filter(Boolean).join(' · ')}${r.brix>0?' '+r.brix+'°Bx':''}</span><br>
         <span>${r.description}</span>
       </div>`).join('')}`).join('');
     lst.style.display=matches.length?'block':'none';
@@ -1940,25 +1941,28 @@ async function loadFromServer() {
 
       // Handle both array and wrapped response formats
       const itemsArr     = Array.isArray(itemsData) ? itemsData : (itemsData.products || itemsData.items || []);
+      // Debug: log first item/rawmat keys so we can see exact field names from server
+      if (itemsArr.length) console.log('[RecipeManager] First ITEM keys:', Object.keys(itemsArr[0]));
+      if (rawMaterials.length) console.log('[RecipeManager] First RAWMAT keys:', Object.keys(rawMaterials[0]));
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
-      // Normalize items: server may use uppercase keys
+      // Normalize items: ...p spread first so explicit lowercase keys always win
       const normalizedItems = itemsArr.map(p => ({
-        code: String(p.code || p.CODE || p.Code || ''),
+        ...p,
+        code:        String(p.code || p.CODE || p.Code || ''),
         description: p.description || p.DESCRIPTION || p.Description || '',
-        brand: p.brand || p.BRAND || '',
-        product: p.product || p.PRODUCT || '',
-        flavor: p.flavor || p.FLAVOR || '',
-        unit: p.unit || p.UNIT || '',
-        net: p.net || p.NET || '',
-        units_pack: p.units_pack || p.UNITS_PACK || '',
+        brand:       p.brand || p.BRAND || '',
+        product:     p.product || p.PRODUCT || '',
+        flavor:      p.flavor || p.FLAVOR || p.SABOR || p.sabor || '',
+        unit:        p.unit || p.UNIT || '',
+        net:         p.net || p.NET || '',
+        units_pack:  p.units_pack || p.UNITS_PACK || '',
         dissolution: p.dissolution || p.DISSOLUTION || 1,
-        batch_size: p.batch_size || p.BATCH_SIZE || 0,
-        recipe: p.recipe || p.RECIPE || {},
-        attrs: p.attrs || p.ATTRS || {},
-        weekData: p.weekData || p.WEEK_DATA || {},
-        line: p.line || p.LINE || '',
-        ...p
+        batch_size:  parseFloat(p.batch_size || p.BATCH_SIZE) || 0,
+        recipe:      p.recipe || p.RECIPE || {},
+        attrs:       p.attrs || p.ATTRS || {},
+        weekData:    p.weekData || p.WEEK_DATA || {},
+        line:        p.line || p.LINE || '',
       }));
       // Load all recipes from /api/recipes
       // Server returns: {"recipes": {"CODE": [{ingredient_code, quantity}, ...]}}
@@ -1990,16 +1994,26 @@ async function loadFromServer() {
       });
 
       // Normalize raw materials: map UPPERCASE fields, extract brix from description
-      const normalizedRawMats = (rawMaterials || []).map(r => {
+      const normalizedRawMats = (rawMaterials || []).filter(r => {
+        // Skip completely empty rows (no code and no description)
+        const hasCode = r.CODE || r.code;
+        const hasDesc = r.DESCRIPTION || r.description;
+        return hasCode || hasDesc;
+      }).map(r => {
         const desc = r.DESCRIPTION || r.description || '';
-        const brixMatch = desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i);
-        const brix = brixMatch ? parseFloat(brixMatch[1]) : 0;
+        // Brix: prefer explicit fc/brix column, fallback to parsing description
+        const brixCol = parseFloat(r.fc || r.FC || r.brix || r.BRIX || 0);
+        const brixMatch = !brixCol ? desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i) : null;
+        const brix = brixCol || (brixMatch ? parseFloat(brixMatch[1]) : 0);
         return {
-          code: String(r.CODE !== undefined ? r.CODE : (r.code || '')),
+          code:        String(r.CODE !== undefined ? r.CODE : (r.code || '')),
           description: desc,
-          material: r.MATERIAL || r.material || '',
-          unit: r.UM || r.unit || '',
-          brix: brix,
+          material:    r.MATERIAL || r.material || '',
+          unit:        r.UM || r.unit || '',
+          brix:        brix,
+          owner:       (r.OWNER || r.owner || '').toString().trim(),
+          brand:       (r.BRAND || r.brand || '').toString().trim(),
+          type:        (r.TYPE || r.type || '').toString().trim(),
         };
       });
 

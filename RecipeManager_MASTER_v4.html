@@ -1946,23 +1946,43 @@ async function loadFromServer() {
       if (rawMaterials.length) console.log('[RecipeManager] First RAWMAT keys:', Object.keys(rawMaterials[0]));
       const rawMaterials = Array.isArray(rawMatsData) ? rawMatsData : (rawMatsData.rawMaterials || rawMatsData.raw_materials || []);
 
-      // Normalize items: ...p spread first so explicit lowercase keys always win
+      // Normalize items — server sends exact Excel column names (uppercase)
       const normalizedItems = itemsArr.map(p => ({
         ...p,
-        code:        String(p.code || p.CODE || p.Code || ''),
-        description: p.description || p.DESCRIPTION || p.Description || '',
-        brand:       p.brand || p.BRAND || '',
-        product:     p.product || p.PRODUCT || '',
-        flavor:      p.flavor || p.FLAVOR || p.SABOR || p.sabor || '',
-        unit:        p.unit || p.UNIT || '',
-        net:         p.net || p.NET || '',
-        units_pack:  p.units_pack || p.UNITS_PACK || '',
-        dissolution: p.dissolution || p.DISSOLUTION || 1,
-        batch_size:  parseFloat(p.batch_size || p.BATCH_SIZE) || 0,
+        code:        String(p.CODE || p.code || p.Code || '').trim(),
+        description: (p.DESCRIPTION || p.description || p.Description || '').trim(),
+        brand:       (p.BRAND || p.brand || '').trim(),
+        owner:       (p.OWNER || p.owner || '').trim(),
+        product:     (p.PRODUCT || p.product || '').trim(),
+        // Server has a typo: DISOLUTION (one S) — handle both
+        dissolution: parseInt(p.DISOLUTION || p.DISSOLUTION || p.dissolution || p.disolution || 1) || 1,
+        // Flavor column is called FLAVORS in the server
+        flavor:      (p.FLAVORS || p.FLAVOR || p.flavor || p.SABOR || p.sabor || '').trim(),
+        unit:        (p.UNIT || p.unit || '').trim(),
+        net:         p.NET || p.net || '',
+        units_pack:  p.UNITS_PACK || p.units_pack || '',
+        batch_size:  parseFloat(p.BATCH_SIZE || p.batch_size) || 0,
+        line:        (p['LINE 1'] || p.LINE || p.line || '').trim(),
         recipe:      p.recipe || p.RECIPE || {},
-        attrs:       p.attrs || p.ATTRS || {},
+        attrs:       p.attrs || p.ATTRS || {
+          // Pre-populate attrs from the rich server fields
+          printCode1:    p.PRINT_CODE_1 || '',
+          printCode2:    p.PRINT_CODE_2 || '',
+          printCode3:    p.PRINT_CODE_3 || '',
+          printCode4:    p.PRINT_CODE_4 || '',
+          shrinkCaseSize: p.SRINK_SIZE || '',
+          casesPallet:   p.CASES_PALLET || '',
+          palletLayers:  p.PALLET_LAYERS || '',
+          palletPattern: p.PALLET_PATTERN || '',
+          casePattern:   p.CASE_PATTERN || '',
+          palletType:    p['PALLET TYPE'] || '',
+          topSheet:      p['TOP SHEET'] || '',
+          bottomSheet:   p['BOTTON SHEET'] || '',
+          stdSpeed:      p['STD_SPEED (CxM)'] || '',
+          line:          p['LINE 1'] || '',
+          barcodeMsg:    p['BAR CODE'] || '',
+        },
         weekData:    p.weekData || p.WEEK_DATA || {},
-        line:        p.line || p.LINE || '',
       }));
       // Load all recipes from /api/recipes
       // Server returns: {"recipes": {"CODE": [{ingredient_code, quantity}, ...]}}
@@ -2000,22 +2020,34 @@ async function loadFromServer() {
         const hasDesc = r.DESCRIPTION || r.description;
         return hasCode || hasDesc;
       }).map(r => {
-        const desc = r.DESCRIPTION || r.description || '';
-        // Brix: prefer explicit fc/brix column, fallback to parsing description
+        const desc = (r.DESCRIPTION || r.description || '').trim();
+        // Brix: prefer explicit 'fc' column, fallback to parsing description
         const brixCol = parseFloat(r.fc || r.FC || r.brix || r.BRIX || 0);
         const brixMatch = !brixCol ? desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i) : null;
         const brix = brixCol || (brixMatch ? parseFloat(brixMatch[1]) : 0);
+        // Normalize material casing — server has mixed case (Concentrate / CONCENTRATE)
+        const material = (r.MATERIAL || r.material || '').trim().toUpperCase();
+        const code = String(r.CODE !== undefined ? r.CODE : (r.code || '')).trim();
+        if (!code) return null; // will be filtered below
+        // Extract brand from description: pattern is "CODE -Description text- BRAND"
+        // e.g. "876 -NAT. CREAM SODA FLAVOR- CRIPTO" → brand = "CRIPTO"
+        // e.g. "ckbo -Orange Juice 100% 12 Bx.- KB"  → brand = "KB"
+        let brand = (r.BRAND || r.brand || '').toString().trim();
+        if (!brand) {
+          const brandMatch = desc.match(/[-–]\s*([A-Z0-9&/\.]+)\s*$/);
+          if (brandMatch) brand = brandMatch[1].trim();
+        }
         return {
-          code:        String(r.CODE !== undefined ? r.CODE : (r.code || '')),
+          code,
           description: desc,
-          material:    r.MATERIAL || r.material || '',
-          unit:        r.UM || r.unit || '',
-          brix:        brix,
-          owner:       (r.OWNER || r.owner || '').toString().trim(),
-          brand:       (r.BRAND || r.brand || '').toString().trim(),
-          type:        (r.TYPE || r.type || '').toString().trim(),
+          material,
+          unit:  (r.UM || r.unit || '').trim(),
+          brix,
+          brand,
+          owner: (r.OWNER || r.owner || '').toString().trim(),
+          type:  (r.TYPE || r.type || '').toString().trim(),
         };
-      });
+      }).filter(Boolean);
 
       // DB must have a .products array
       DB = { products: normalizedItems, rawMaterials: normalizedRawMats };

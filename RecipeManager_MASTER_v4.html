@@ -2029,12 +2029,13 @@ async function loadFromServer() {
         const material = (r.MATERIAL || r.material || '').trim().toUpperCase();
         const code = String(r.CODE !== undefined ? r.CODE : (r.code || '')).trim();
         if (!code) return null; // will be filtered below
-        // Extract brand from description: pattern is "CODE -Description text- BRAND"
-        // e.g. "876 -NAT. CREAM SODA FLAVOR- CRIPTO" → brand = "CRIPTO"
-        // e.g. "ckbo -Orange Juice 100% 12 Bx.- KB"  → brand = "KB"
+        // Extract brand from description: last "- BRAND" segment at end of string
+        // e.g. "1 -32PK 200ML WHITE TRAY - LAKEWOOD" → "LAKEWOOD"
+        // e.g. "876 -NAT. CREAM SODA FLAVOR- CRIPTO"  → "CRIPTO"
+        // e.g. "P0009 -GOLIATH Apple Nectar 1000 ML -GO" → "GO"
         let brand = (r.BRAND || r.brand || '').toString().trim();
         if (!brand) {
-          const brandMatch = desc.match(/[-–]\s*([A-Z0-9&/\.]+)\s*$/);
+          const brandMatch = desc.match(/-\s*([A-Za-z0-9][A-Za-z0-9 &/\.]*?)\s*$/);
           if (brandMatch) brand = brandMatch[1].trim();
         }
         return {

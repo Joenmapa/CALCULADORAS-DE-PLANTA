@@ -574,7 +574,7 @@ input[type=radio].pin-radio{width:14px;height:14px;accent-color:var(--accent);cu
     <div class="form-grid">
       <div class="form-row"><label>Código *</label><input id="f-code"></div>
       <div class="form-row"><label>Descripción *</label><input id="f-desc"></div>
-      <div class="form-row"><label>Brand</label><input id="f-brand"></div>
+      <div class="form-row"><label>Brand</label><select id="f-brand" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);background:var(--surface)"><option value="">— Seleccionar —</option></select></div>
       <div class="form-row"><label>Producto</label><input id="f-product"></div>
       <div class="form-row"><label>Sabor</label><input id="f-flavor"></div>
       <div class="form-row"><label>Unidad</label><input id="f-unit"></div>
@@ -1231,12 +1231,22 @@ function verifyRecipe(){
 // ── NEW / EDIT PRODUCT MODAL ───────────────────────────────────────────────
 function openModal(editing=null){
   editingCode=editing;modalRecipe={};
+  // Populate brand dropdown from existing products
+  const brandSel = document.getElementById('f-brand');
+  const brands = [...new Set(DB.products.map(p=>p.brand).filter(Boolean))].sort();
+  brandSel.innerHTML = '<option value="">— Seleccionar —</option>' + brands.map(b=>`<option value="${b}">${b}</option>`).join('');
   document.getElementById('modal-title').textContent=editing?'Datos Generales — '+editing:'Nuevo Producto';
   if(editing){
     const p=DB.products.find(x=>x.code===editing);
     if(p){
       document.getElementById('f-code').value=p.code;document.getElementById('f-code').readOnly=true;
-      document.getElementById('f-desc').value=p.description;document.getElementById('f-brand').value=p.brand||'';
+      document.getElementById('f-desc').value=p.description;
+      // If brand not in dropdown, add it
+      const bSel=document.getElementById('f-brand');
+      if(p.brand && !Array.from(bSel.options).find(o=>o.value===p.brand)){
+        bSel.innerHTML+=`<option value="${p.brand}">${p.brand}</option>`;
+      }
+      bSel.value=p.brand||'';
       document.getElementById('f-product').value=p.product||'';document.getElementById('f-flavor').value=p.flavor||'';
       document.getElementById('f-unit').value=p.unit||'';document.getElementById('f-net').value=p.net||'';
       document.getElementById('f-units-pack').value=p.units_pack||'';document.getElementById('f-diss').value=p.dissolution;
@@ -1265,19 +1275,7 @@ function renderModalRecipe(){
   }).join('')||'<p class="text-xs" style="padding:8px 0;color:var(--text3)">Sin ingredientes.</p>';
 }
 
-const addSearch=document.getElementById('add-ing-search');
-const addList=document.getElementById('add-ing-list');
-addSearch.addEventListener('input',()=>{
-  const q=addSearch.value.trim().toLowerCase();
-  if(!q){addList.style.display='none';return;}
-  const matches=DB.rawMaterials.filter(r=>r.code.toLowerCase().includes(q)||r.description.toLowerCase().includes(q)).slice(0,25);
-  addList.innerHTML=matches.map(r=>`<div class="autocomplete-item" onclick="modalAddIng('${r.code}')"><span class="ac-code">${r.code}</span><span class="ac-mat">${r.material||''}</span><br><span>${r.description}</span></div>`).join('');
-  addList.style.display=matches.length?'block':'none';
-});
-document.addEventListener('click',e=>{
-  if(!addSearch.contains(e.target)&&!addList.contains(e.target))addList.style.display='none';
-});
-function modalAddIng(code){if(!modalRecipe[code])modalRecipe[code]=0;renderModalRecipe();addSearch.value='';addList.style.display='none';}
+function modalAddIng(code){if(!modalRecipe[code])modalRecipe[code]=0;renderModalRecipe();document.getElementById('add-ing-search').value='';document.getElementById('add-ing-list').style.display='none';}
 
 function saveProduct(){
   const code=document.getElementById('f-code').value.trim();
@@ -1894,24 +1892,10 @@ async function loadFromServer() {
         }
       });
 
-      // Normalize raw materials: map UPPERCASE fields, extract brix from description
-      const normalizedRawMats = (rawMaterials || []).map(r => {
-        const desc = r.DESCRIPTION || r.description || '';
-        const brixMatch = desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i);
-        const brix = brixMatch ? parseFloat(brixMatch[1]) : 0;
-        return {
-          code: String(r.CODE !== undefined ? r.CODE : (r.code || '')),
-          description: desc,
-          material: r.MATERIAL || r.material || '',
-          unit: r.UM || r.unit || '',
-          brix: brix,
-        };
-      });
-
       // DB must have a .products array
-      DB = { products: normalizedItems, rawMaterials: normalizedRawMats };
+      DB = { products: normalizedItems, rawMaterials: rawMaterials };
       rmMap = {};
-      normalizedRawMats.forEach(r => { if(r.code) rmMap[String(r.code)] = r; });
+      (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
       recipeMap = {};
       renderList();
       document.getElementById('loading').style.display = 'none';

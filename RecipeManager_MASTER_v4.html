@@ -2050,6 +2050,16 @@ async function loadFromServer() {
         };
       }).filter(Boolean);
 
+      // Post-process: extract brand from description for any rawMat missing it
+      normalizedRawMats.forEach(r => {
+        if (!r.brand && r.description) {
+          const m = r.description.match(/-\s*([A-Za-z0-9][A-Za-z0-9 &/.]*?)\s*$/);
+          if (m) r.brand = m[1].trim();
+        }
+        // Also normalize material casing
+        if (r.material) r.material = r.material.trim().toUpperCase();
+      });
+
       // DB must have a .products array
       DB = { products: normalizedItems, rawMaterials: normalizedRawMats };
       rmMap = {};

@@ -1,228 +1,334 @@
 <!DOCTYPE html>
-<!-- saved from url=(0059)file:///C:/Users/abd36/Downloads/calculadoras_planta_3.html -->
-<html lang="es"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="es">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculadoras de Planta</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
-  .container { max-width: 860px; margin: 0 auto; }
-  h1 { font-size: 20px; font-weight: 500; margin-bottom: 0.25rem; }
-  .subtitle { font-size: 13px; color: #73726c; margin-bottom: 2rem; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; }
-  .tab { padding: 8px 20px; border: 0.5px solid #b4b2a9; border-radius: 8px; background: transparent; font-size: 14px; cursor: pointer; color: #5f5e5a; transition: all 0.15s; }
-  .tab.active { background: #1a1a18; color: #fff; border-color: #1a1a18; }
-  .tab:hover:not(.active) { background: #f1efe8; }
-  .panel { display: none; background: #fff; border: 0.5px solid #d3d1c7; border-radius: 12px; padding: 1.5rem; }
-  .panel.active { display: block; }
-  .panel-title { font-size: 15px; font-weight: 500; margin-bottom: 1.25rem; }
-  .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
-  .slider-row label { font-size: 13px; color: #73726c; min-width: 210px; }
-  .slider-row input[type=range] { flex: 1; accent-color: #1a1a18; }
-  .slider-val { font-size: 13px; font-weight: 500; min-width: 80px; text-align: right; }
-  .metrics { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 1.25rem 0; }
-  .metric { background: #f5f5f3; border-radius: 8px; padding: 1rem; }
-  .metric .ml { font-size: 12px; color: #73726c; margin-bottom: 4px; }
-  .metric .mv { font-size: 22px; font-weight: 500; }
-  .metric .mu { font-size: 12px; color: #73726c; }
-  .divider { border: none; border-top: 0.5px solid #d3d1c7; margin: 1.25rem 0; }
-  .table-wrap { overflow-x: auto; margin-top: 1.25rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-  th { font-size: 12px; font-weight: 500; color: #73726c; text-align: center; padding: 8px 6px; border-bottom: 1px solid #d3d1c7; }
-  td { text-align: center; padding: 7px 6px; border-bottom: 0.5px solid #f1efe8; }
-  tr.highlight td { background: #e6f1fb; color: #0c447c; font-weight: 500; }
-  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; }
-  .badge-ok { background: #eaf3de; color: #3b6d11; }
-  .badge-lo { background: #faeeda; color: #854f0b; }
-  .badge-hi { background: #fcebeb; color: #a32d2d; }
-  .note { font-size: 12px; color: #73726c; border-left: 2px solid #d3d1c7; padding-left: 10px; margin-top: 1rem; line-height: 1.6; }
-  @media (max-width: 600px) {
-    .metrics { grid-template-columns: 1fr 1fr; }
-    .slider-row { flex-wrap: wrap; }
-    .slider-row label { min-width: 100%; }
-  }
-</style>
+<title>Recipe Manager — Master v4</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div class="container">
-  <h1>Calculadoras de planta</h1>
-  <p class="subtitle">Herramientas para formulación y tratamiento de efluentes</p>
+<div id="loading"><div style="text-align:center"><div class="spinner" style="margin:0 auto"></div><p style="margin-top:10px;color:var(--text3);font-size:12px">Cargando 401 productos...</p></div></div>
 
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab(&#39;brix&#39;, this)">Brix vs % jugo</button>
-    <button class="tab" onclick="switchTab(&#39;co2&#39;, this)">Neutralización CO₂</button>
+<div id="app" style="display:none">
+  <div id="sidebar">
+    <div class="sidebar-header">
+      <h1>⚗ Recipe Manager</h1>
+      <p id="product-count"></p>
+    </div>
+
+    <!-- Smart search with filters -->
+    <div style="padding:8px 10px;border-bottom:1px solid var(--border)">
+      <div class="smart-search-wrap">
+        <input type="text" id="search" placeholder="Buscar por código, descripción, sabor..."
+          style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;background:var(--bg);color:var(--text)"
+          autocomplete="off">
+        <div class="smart-dropdown" id="search-dropdown"></div>
+      </div>
+    </div>
+
+    <!-- Filter chips: product type + dissolution -->
+    <div class="filter-chips" id="filter-chips">
+      <span class="chip on" data-filter-type="diss" data-val="all">Todos</span>
+      <span class="chip" data-filter-type="diss" data-val="1">Dil.1</span>
+      <span class="chip" data-filter-type="diss" data-val="4">Dil.1+3</span>
+    </div>
+    <div class="filter-chips" id="filter-chips-brand" style="gap:3px;padding:4px 10px"></div>
+
+    <div class="product-list" id="product-list"></div>
+    <div class="new-btn" id="new-product-btn">+ Nuevo Producto</div>
   </div>
 
-  <div class="panel active" id="panel-brix">
-    <p class="panel-title">Brix final vs % de jugo — concentrado de manzana</p>
-    <div class="slider-row">
-      <label>Brix del concentrado (°Bx)</label>
-      <input type="range" id="brixConc" min="60" max="75" step="0.5" value="71">
-      <span class="slider-val"><span id="brixConcVal">71.0</span> °Bx</span>
+  <div id="main">
+    <div class="tab-bar">
+      <div class="tab active" data-tab="info">Info &amp; Receta</div>
+      <div class="tab" data-tab="calc">Calculadora</div>
+      <div class="tab" data-tab="verify">Brix &amp; % Jugo</div>
+      <div class="tab" data-tab="attrs">Atributos</div>
+      <div class="tab" data-tab="planning">Planning</div>
     </div>
-    <div class="slider-row">
-      <label>Azúcar adicional en bebida (°Bx)</label>
-      <input type="range" id="brixSugar" min="0" max="12" step="0.5" value="4">
-      <span class="slider-val"><span id="brixSugarVal">4.0</span> °Bx</span>
-    </div>
-    <div class="slider-row">
-      <label>Brix objetivo de la bebida (°Bx)</label>
-      <input type="range" id="brixTarget" min="10" max="16" step="0.5" value="12">
-      <span class="slider-val"><span id="brixTargetVal">12.0</span> °Bx</span>
-    </div>
-    <hr class="divider">
-    <div class="metrics">
-      <div class="metric">
-        <div class="ml">% jugo en fórmula</div>
-        <div class="mv" id="pctJuice">11.3%</div>
-        <div class="mu">calculado</div>
-      </div>
-      <div class="metric">
-        <div class="ml">Aporte del jugo</div>
-        <div class="mv" id="juiceContrib">8.0</div>
-        <div class="mu">°Bx</div>
-      </div>
-      <div class="metric">
-        <div class="ml">Dilución</div>
-        <div class="mv" id="dilution">7.9</div>
-        <div class="mu">partes agua : 1 conc.</div>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>% jugo</th><th>Aporte jugo (°Bx)</th><th>+ azúcar (°Bx)</th>
-            <th>Brix final (°Bx)</th><th>Categoría Codex</th><th>Estado</th>
-          </tr>
-        </thead>
-        <tbody id="brixTableBody"><tr><td>15%</td><td>10.7</td><td>4.0</td><td>14.7</td><td>Bebida de jugo</td><td><span class="badge badge-ok">ok</span></td></tr><tr><td>16%</td><td>11.4</td><td>4.0</td><td>15.4</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>17%</td><td>12.1</td><td>4.0</td><td>16.1</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>18%</td><td>12.8</td><td>4.0</td><td>16.8</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>19%</td><td>13.5</td><td>4.0</td><td>17.5</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>20%</td><td>14.2</td><td>4.0</td><td>18.2</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>21%</td><td>14.9</td><td>4.0</td><td>18.9</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>22%</td><td>15.6</td><td>4.0</td><td>19.6</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>23%</td><td>16.3</td><td>4.0</td><td>20.3</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>24%</td><td>17.0</td><td>4.0</td><td>21.0</td><td>Bebida de jugo</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>25%</td><td>17.8</td><td>4.0</td><td>21.8</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>26%</td><td>18.5</td><td>4.0</td><td>22.5</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>27%</td><td>19.2</td><td>4.0</td><td>23.2</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>28%</td><td>19.9</td><td>4.0</td><td>23.9</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>29%</td><td>20.6</td><td>4.0</td><td>24.6</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr><tr><td>30%</td><td>21.3</td><td>4.0</td><td>25.3</td><td>Néctar</td><td><span class="badge badge-hi">alto</span></td></tr></tbody>
-      </table>
-    </div>
-  </div>
 
-  <div class="panel" id="panel-co2">
-    <p class="panel-title">Consumo de CO₂ para neutralización de pH de efluentes</p>
-    <div class="slider-row">
-      <label>Caudal (gal/día)</label>
-      <input type="range" id="flow" min="5000" max="100000" step="1000" value="27000">
-      <span class="slider-val"><span id="flowVal">27,000</span></span>
-    </div>
-    <div class="slider-row">
-      <label>pH inicial</label>
-      <input type="range" id="phIn" min="7.5" max="12" step="0.1" value="9">
-      <span class="slider-val"><span id="phInVal">9.0</span></span>
-    </div>
-    <div class="slider-row">
-      <label>pH objetivo</label>
-      <input type="range" id="phOut" min="6" max="8" step="0.1" value="7">
-      <span class="slider-val"><span id="phOutVal">7.0</span></span>
-    </div>
-    <div class="slider-row">
-      <label>Alcalinidad (mg/L CaCO₃)</label>
-      <input type="range" id="alk" min="50" max="800" step="10" value="250">
-      <span class="slider-val"><span id="alkVal">250</span> mg/L</span>
-    </div>
-    <div class="slider-row">
-      <label>Eficiencia inyección (%)</label>
-      <input type="range" id="eff" min="50" max="95" step="1" value="75">
-      <span class="slider-val"><span id="effVal">75</span>%</span>
-    </div>
-    <hr class="divider">
-    <div class="metrics">
-      <div class="metric">
-        <div class="ml">CO₂ por día</div>
-        <div class="mv" id="kgDay">30</div>
-        <div class="mu">kg/día</div>
+    <!-- INFO TAB -->
+    <div class="panel active" id="panel-info">
+      <div id="info-empty" class="empty">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto 10px;display:block"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <p>Selecciona un producto o crea uno nuevo</p>
       </div>
-      <div class="metric">
-        <div class="ml">CO₂ por mes</div>
-        <div class="mv" id="kgMonth">901</div>
-        <div class="mu">kg/mes</div>
-      </div>
-      <div class="metric">
-        <div class="ml">CO₂ por hora</div>
-        <div class="mv" id="kgHour">1.3</div>
-        <div class="mu">kg/hr</div>
+      <div id="info-content" style="display:none">
+        <div class="edit-banner" id="edit-banner">
+          <span class="edit-banner-msg">✏ Modo edición — cambios no guardados hasta confirmar</span>
+          <div class="edit-banner-actions">
+            <button class="btn btn-edit" onclick="requestSaveEdits()">Guardar</button>
+            <button class="btn btn-ghost" onclick="cancelEdits()">Cancelar</button>
+          </div>
+        </div>
+        <div class="flex-between mb12">
+          <div>
+            <div class="flex" style="gap:8px;align-items:baseline">
+              <h2 id="inf-code" class="font-mono" style="font-size:15px"></h2>
+              <span id="inf-diss-badge" class="badge"></span>
+            </div>
+            <p id="inf-desc" class="text-sm" style="margin-top:2px"></p>
+          </div>
+          <div class="flex">
+            <button class="btn btn-edit" id="edit-toggle-btn" onclick="toggleEditMode()">✏ Editar receta</button>
+            <button class="btn btn-ghost" onclick="openModal(currentProduct?currentProduct.code:null)" style="font-size:11px">Datos generales</button>
+            <button class="btn btn-danger" onclick="deleteCurrentProduct()" style="font-size:11px">Eliminar</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Información General</div>
+          <div class="info-grid" id="inf-general"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">
+            <span>Receta — Ingredientes</span>
+            <span class="text-xs" id="inf-recipe-count"></span>
+          </div>
+          <div id="edit-add-row" style="display:none;margin-bottom:10px">
+            <div class="autocomplete-wrap">
+              <input type="text" id="inline-ing-search" placeholder="Agregar ingrediente..."
+                style="width:100%;padding:7px 10px;border:1px solid var(--edit-border);border-radius:var(--radius);font-size:12px;background:var(--edit-light)">
+              <div class="autocomplete-list" id="inline-ing-list" style="display:none"></div>
+            </div>
+          </div>
+          <table class="recipe-table" id="inf-recipe-table">
+            <thead><tr>
+              <th class="th-radio" id="th-pin" style="display:none">📌</th>
+              <th>Código</th><th>Descripción</th><th>Material</th><th>Brix</th><th>Unidad</th>
+              <th style="text-align:right">Cantidad Std</th>
+              <th id="th-actions" style="display:none;width:30px"></th>
+            </tr></thead>
+            <tbody id="inf-recipe-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div id="rangeNote" class="note">Rango operativo estimado: <strong>24 – 39 kg/día</strong>. La alcalinidad real del efluente es el factor dominante — se recomienda medir alcalinidad total en planta para afinar este cálculo.</div>
+
+    <!-- CALC TAB -->
+    <div class="panel" id="panel-calc">
+      <div id="calc-empty" class="empty"><p>Selecciona un producto primero</p></div>
+      <div id="calc-content" style="display:none">
+        <h2 id="calc-title" class="mb10" style="font-size:14px"></h2>
+        <div class="card mb10" style="margin-bottom:12px">
+          <div class="card-title">Modo de redimensionado</div>
+          <div class="flex" style="gap:16px;margin-bottom:12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="radio" name="resize-mode" value="batch" checked onchange="switchResizeMode('batch')" style="accent-color:var(--accent)">
+              Por tamaño de batch
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="radio" name="resize-mode" value="ingredient" onchange="switchResizeMode('ingredient')" style="accent-color:var(--accent)">
+              Por ingrediente limitante
+            </label>
+          </div>
+          <div id="mode-batch">
+            <div class="calc-header">
+              <div class="num-inp"><label>Nuevo batch</label><input type="number" id="new-batch" step="any" min="0"><span class="unit">LT</span></div>
+              <div class="num-inp"><label>Batch estándar</label><input type="number" id="std-batch" readonly style="background:var(--bg);color:var(--text2)"><span class="unit">LT</span></div>
+              <button class="btn btn-primary" onclick="calcBatch()">Calcular</button>
+              <button class="btn btn-ghost" onclick="resetBatch()">Reset</button>
+            </div>
+          </div>
+          <div id="mode-ingredient" style="display:none">
+            <div class="status-bar status-info" style="margin-bottom:10px">ℹ Marca con 📌 el ingrediente limitante en la tabla. Ingresa la cantidad disponible.</div>
+            <div class="calc-header">
+              <div id="pinned-ing-display" style="font-size:13px;color:var(--text2);flex:1">— Ningún ingrediente marcado —</div>
+              <div class="num-inp"><label>Cantidad disponible</label><input type="number" id="ing-available" step="any" min="0" placeholder="ej: 500"><span class="unit" id="ing-unit-label">—</span></div>
+              <button class="btn btn-primary" onclick="calcByIngredient()">Calcular</button>
+              <button class="btn btn-ghost" onclick="resetBatch()">Reset</button>
+            </div>
+          </div>
+        </div>
+        <div class="metrics" id="batch-metrics"></div>
+        <div class="card">
+          <div class="card-title"><span>Ingredientes proporcionales</span><span id="calc-scale-label" class="text-xs"></span></div>
+          <table class="recipe-table" id="calc-recipe-table">
+            <thead><tr>
+              <th class="th-radio">📌</th><th>Código</th><th>Descripción</th><th>Material</th><th>Brix</th><th>Unidad</th>
+              <th style="text-align:right">Std</th><th style="text-align:right">Ajustado</th><th style="text-align:right">Δ%</th>
+            </tr></thead>
+            <tbody id="calc-recipe-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VERIFY TAB — with recipe editor -->
+    <div class="panel" id="panel-verify">
+      <div id="verify-empty" class="empty"><p>Selecciona un producto primero</p></div>
+      <div id="verify-content" style="display:none">
+        <h2 id="verify-title" class="mb10" style="font-size:14px"></h2>
+
+        <!-- Product picker within verify -->
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-title">Seleccionar producto a verificar / corregir</div>
+          <div class="smart-search-wrap" style="margin-bottom:0">
+            <input type="text" id="verify-product-search" placeholder="Buscar otro producto para verificar..."
+              style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;background:var(--bg)"
+              autocomplete="off">
+            <div class="smart-dropdown" id="verify-product-dropdown"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Parámetros de verificación</div>
+          <div class="calc-header">
+            <div class="num-inp"><label>Batch</label><input type="number" id="v-batch" step="any" min="0"><span class="unit">LT</span></div>
+            <div class="num-inp"><label>Brix objetivo</label><input type="number" id="v-brix-target" step="0.1" min="0" style="width:80px"><span class="unit">°Bx</span></div>
+            <div class="num-inp"><label>% Jugo objetivo</label><input type="number" id="v-juice-target" step="0.1" min="0" style="width:80px"><span class="unit">%</span></div>
+            <div class="num-inp"><label>Tolerancia</label><input type="number" id="v-tol" step="0.1" min="0" value="5" style="width:60px"><span class="unit">%</span></div>
+            <button class="btn btn-primary" onclick="verifyRecipe()">Verificar</button>
+          </div>
+        </div>
+
+        <!-- Inline recipe editor for corrections -->
+        <div class="card">
+          <div class="card-title" style="justify-content:space-between">
+            <span>Receta para verificar / ajustar</span>
+            <div class="flex" style="gap:6px">
+              <button class="btn btn-edit" onclick="toggleVerifyEditMode()" id="verify-edit-btn" style="font-size:11px">✏ Editar cantidades</button>
+              <button class="btn btn-ghost" onclick="resetVerifyRecipe()" style="font-size:11px">↩ Reset</button>
+            </div>
+          </div>
+          <p class="text-xs" style="margin-bottom:8px">Modifica las cantidades de la receta temporalmente para encontrar la combinación que da los Brix y % jugo deseados. Los cambios aquí no modifican la receta original.</p>
+          <div id="verify-add-row" style="display:none;margin-bottom:8px">
+            <div class="autocomplete-wrap">
+              <input type="text" id="verify-ing-search" placeholder="Agregar ingrediente temporal..."
+                style="width:100%;padding:6px 10px;border:1px solid var(--edit-border);border-radius:var(--radius);font-size:12px;background:var(--edit-light)">
+              <div class="autocomplete-list" id="verify-ing-list" style="display:none"></div>
+            </div>
+          </div>
+          <table class="recipe-table" id="verify-recipe-table">
+            <thead><tr>
+              <th style="text-align:center;width:36px" title="🔒 Fijo: escala con el batch. Sin check: editas libremente.">🔒</th>
+              <th>Código</th><th>Descripción</th><th>Material</th><th>Brix</th><th>Unidad</th>
+              <th style="text-align:right">Cantidad</th><th id="v-th-del" style="display:none;width:24px"></th>
+            </tr></thead>
+            <tbody id="verify-recipe-body"></tbody>
+          </table>
+        </div>
+
+        <div id="verify-results" style="display:none">
+          <div class="metrics" id="verify-metrics"></div>
+          <div id="verify-status-bar" class="status-bar"></div>
+          <div class="card">
+            <div class="card-title">Aporte de Brix por ingrediente</div>
+            <table class="recipe-table" id="verify-brix-table">
+              <thead><tr><th>Código</th><th>Descripción</th><th>Material</th><th style="text-align:right">Qty</th><th>Un.</th><th style="text-align:right">Brix</th><th style="text-align:right">Sucrose kg</th><th style="text-align:right">%Contrib.</th></tr></thead>
+              <tbody id="verify-brix-body"></tbody>
+            </table>
+          </div>
+          <div class="card" id="juice-card" style="display:none">
+            <div class="card-title">Cálculo % Jugo — método reconstitución en galones</div>
+            <div id="juice-detail"></div>
+          </div>
+          <!-- Save corrected recipe button -->
+          <div id="verify-save-bar" style="display:none;margin-top:12px">
+            <div class="status-bar status-edit" style="display:flex;align-items:center;justify-content:space-between">
+              <span>✏ La receta ha sido modificada en esta pantalla.</span>
+              <button class="btn btn-edit" onclick="saveVerifyEditsToRecipe()">Guardar correcciones a la receta oficial</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ATTRS TAB -->
+    <div class="panel" id="panel-attrs">
+      <div id="attrs-empty" class="empty"><p>Selecciona un producto primero</p></div>
+      <div id="attrs-content" style="display:none">
+        <div class="flex-between mb12 print-hide">
+          <h2 id="attrs-title" style="font-size:14px"></h2>
+          <div class="flex">
+            <button class="btn btn-ghost" onclick="window.print()" style="font-size:12px">🖨 Imprimir checklist</button>
+            <button class="btn btn-edit" onclick="saveAttrs()" style="font-size:12px">💾 Guardar atributos</button>
+          </div>
+        </div>
+        <div class="attr-sheet" id="attrs-form"></div>
+      </div>
+    </div>
+
+    <!-- PLANNING TAB -->
+    <div class="panel" id="panel-planning">
+      <div class="plan-toolbar">
+        <div class="num-inp"><label>Año</label><input type="number" id="plan-year" value="2026" style="width:80px"></div>
+        <div class="flex" style="gap:6px">
+          <span class="chip on" data-plan-line="all">Todas líneas</span>
+          <span class="chip line-chip" data-plan-line="A3FLEX"><span class="line-dot line-A3FLEX"></span>A3FLEX</span>
+          <span class="chip line-chip" data-plan-line="TBA 19-02"><span class="line-dot line-TBA19-02"></span>TBA 19-02</span>
+          <span class="chip line-chip" data-plan-line="TBA 19-03"><span class="line-dot line-TBA19-03"></span>TBA 19-03</span>
+          <span class="chip line-chip" data-plan-line="PET"><span class="line-dot line-PET"></span>PET</span>
+        </div>
+        <input type="text" id="plan-search" placeholder="Filtrar producto..." style="padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;width:200px">
+        <div class="num-inp" style="margin-left:auto"><label>Semana actual</label><input type="number" id="plan-current-week" value="14" style="width:60px"></div>
+      </div>
+
+      <!-- Hours summary by line -->
+      <div class="metrics" id="plan-hours-summary" style="margin-bottom:12px"></div>
+
+      <!-- 52-week grid -->
+      <div class="plan-grid-wrap">
+        <table class="plan-grid" id="plan-grid-table">
+          <thead id="plan-grid-head"></thead>
+          <tbody id="plan-grid-body"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
-<script>
-  function switchTab(name, el) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('panel-' + name).classList.add('active');
-    el.classList.add('active');
-  }
+<!-- CONFIRM MODAL -->
+<div id="confirm-overlay" onclick="if(event.target===this)closeConfirm()">
+  <div class="confirm-box">
+    <h3>Confirmar cambios en la receta</h3>
+    <p>Cambios en <strong id="confirm-product-code"></strong>:</p>
+    <div class="diff-list" id="confirm-diff-list"></div>
+    <p class="text-sm" style="margin-bottom:14px">¿Confirmas que estos cambios son intencionales?</p>
+    <div class="flex" style="gap:8px">
+      <button class="btn btn-primary" onclick="confirmSaveEdits()">Sí, guardar</button>
+      <button class="btn btn-ghost" onclick="closeConfirm()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
-  function getCategory(p) {
-    if (p >= 100) return 'Jugo puro';
-    if (p >= 50) return 'Jugo reconstituido';
-    if (p >= 25) return 'Néctar';
-    if (p >= 6) return 'Bebida de jugo';
-    return 'Agua saborizada';
-  }
+<!-- NEW/EDIT PRODUCT MODAL -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="flex-between mb10" style="margin-bottom:14px">
+      <h2 id="modal-title">Nuevo Producto</h2>
+      <button class="btn btn-ghost" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Código *</label><input id="f-code"></div>
+      <div class="form-row"><label>Descripción *</label><input id="f-desc"></div>
+      <div class="form-row"><label>Brand</label><select id="f-brand" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--text);background:var(--surface)"><option value="">— Seleccionar —</option></select></div>
+      <div class="form-row"><label>Producto</label><input id="f-product"></div>
+      <div class="form-row"><label>Sabor</label><input id="f-flavor"></div>
+      <div class="form-row"><label>Unidad</label><input id="f-unit"></div>
+      <div class="form-row"><label>Contenido neto</label><input id="f-net" type="number" step="any"></div>
+      <div class="form-row"><label>Unidades/pack</label><input id="f-units-pack" type="number"></div>
+      <div class="form-row"><label>Disolución</label>
+        <select id="f-diss"><option value="1">1 — Directo</option><option value="4">4 — Jarabe 1+3</option></select>
+      </div>
+      <div class="form-row"><label>Batch estándar (LT)</label><input id="f-batch" type="number" step="any"></div>
+    </div>
+    <div style="border-top:1px solid var(--border);margin:14px 0"></div>
+    <h3 style="margin-bottom:8px">Ingredientes</h3>
+    <div id="modal-recipe-list"></div>
+    <div style="margin-top:8px">
+      <div id="add-ing-material-filters" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
+      <div class="autocomplete-wrap">
+        <input type="text" id="add-ing-search" placeholder="Buscar por nombre o código..." style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px">
+        <div class="autocomplete-list" id="add-ing-list" style="display:none"></div>
+      </div>
+    </div>
+    <div class="flex" style="margin-top:14px;gap:8px">
+      <button class="btn btn-primary" onclick="saveProduct()">Guardar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
-  function renderBrix() {
-    const brixConc = parseFloat(document.getElementById('brixConc').value);
-    const brixSugar = parseFloat(document.getElementById('brixSugar').value);
-    const brixTarget = parseFloat(document.getElementById('brixTarget').value);
-    document.getElementById('brixConcVal').textContent = brixConc.toFixed(1);
-    document.getElementById('brixSugarVal').textContent = brixSugar.toFixed(1);
-    document.getElementById('brixTargetVal').textContent = brixTarget.toFixed(1);
-    const pct = ((brixTarget - brixSugar) / brixConc) * 100;
-    const juiceContrib = brixConc * (pct / 100);
-    document.getElementById('pctJuice').textContent = pct > 0 ? pct.toFixed(1) + '%' : '—';
-    document.getElementById('juiceContrib').textContent = pct > 0 ? juiceContrib.toFixed(1) : '—';
-    document.getElementById('dilution').textContent = pct > 0 ? ((100 - pct) / pct).toFixed(1) : '—';
-    const tbody = document.getElementById('brixTableBody');
-    tbody.innerHTML = '';
-    for (let p = 15; p <= 30; p++) {
-      const juiceB = brixConc * (p / 100);
-      const totalB = juiceB + brixSugar;
-      let badge, bc;
-      if (totalB < 10) { badge = 'bajo'; bc = 'badge-lo'; }
-      else if (totalB > 15) { badge = 'alto'; bc = 'badge-hi'; }
-      else { badge = 'ok'; bc = 'badge-ok'; }
-      const tr = document.createElement('tr');
-      if (Math.abs(p - Math.round(pct)) <= 0.5) tr.classList.add('highlight');
-      tr.innerHTML = `<td>${p}%</td><td>${juiceB.toFixed(1)}</td><td>${brixSugar.toFixed(1)}</td><td>${totalB.toFixed(1)}</td><td>${getCategory(p)}</td><td><span class="badge ${bc}">${badge}</span></td>`;
-      tbody.appendChild(tr);
-    }
-  }
-
-  function renderCO2() {
-    const flow = +document.getElementById('flow').value;
-    const phIn = +document.getElementById('phIn').value;
-    const phOut = +document.getElementById('phOut').value;
-    const alk = +document.getElementById('alk').value;
-    const eff = +document.getElementById('eff').value / 100;
-    document.getElementById('flowVal').textContent = flow.toLocaleString();
-    document.getElementById('phInVal').textContent = phIn.toFixed(1);
-    document.getElementById('phOutVal').textContent = phOut.toFixed(1);
-    document.getElementById('alkVal').textContent = alk;
-    document.getElementById('effVal').textContent = Math.round(+document.getElementById('eff').value);
-    const volL = flow * 3.78541;
-    const alkMeqL = alk / 50;
-    const deltaOH = Math.max(0, Math.pow(10, phIn - 14) - Math.pow(10, phOut - 14));
-    const co2_kg = ((alkMeqL * 0.001 + deltaOH) * volL * 44) / 1000 / eff;
-    document.getElementById('kgDay').textContent = co2_kg < 1 ? co2_kg.toFixed(2) : Math.round(co2_kg).toLocaleString();
-    document.getElementById('kgMonth').textContent = Math.round(co2_kg * 30).toLocaleString();
-    document.getElementById('kgHour').textContent = (co2_kg / 24).toFixed(1);
-    const lo = Math.round(co2_kg * 0.8);
-    const hi = Math.round(co2_kg * 1.3);
-    document.getElementById('rangeNote').innerHTML = `Rango operativo estimado: <strong>${lo.toLocaleString()} – ${hi.toLocaleString()} kg/día</strong>. La alcalinidad real del efluente es el factor dominante — se recomienda medir alcalinidad total en planta para afinar este cálculo.`;
-  }
-
-  ['brixConc','brixSugar','brixTarget'].forEach(id => document.getElementById(id).addEventListener('input', renderBrix));
-  ['flow','phIn','phOut','alk','eff'].forEach(id => document.getElementById(id).addEventListener('input', renderCO2));
-  renderBrix();
-  renderCO2();
-</script>
-
-
-</body></html>
+<script src="app.js"></script>
+</body>
+</html>

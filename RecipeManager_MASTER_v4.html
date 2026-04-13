@@ -366,7 +366,6 @@ input[type=radio].pin-radio{width:14px;height:14px;accent-color:var(--accent);cu
           </div>
           <table class="recipe-table" id="inf-recipe-table">
             <thead><tr>
-              <th style="text-align:center;width:36px" title="🔒 Fijo: escala con el batch. Sin check: cantidad libre.">🔒</th>
               <th class="th-radio" id="th-pin" style="display:none">📌</th>
               <th>Código</th><th>Descripción</th><th>Material</th><th>Brix</th><th>Unidad</th>
               <th style="text-align:right">Cantidad Std</th>
@@ -619,7 +618,6 @@ let editedAdditions = {};
 // Calc state
 let pinnedIngredient = null;
 let resizeMode = 'batch';
-let infoFixed = {}; // code -> false means free (not scaled with batch); default true
 
 // ── DENSITY / BRIX HELPERS ──────────────────────────────────────────────────
 // Fitted to ICUMSA Brix-density table (lb/gal), validated against your sheets:
@@ -906,13 +904,8 @@ function renderRecipeTable(){
     const currentQty=editedQtys[code]!=null?editedQtys[code]:stdQty;
     const rowClass=isAdded?'pinned-row':isChanged?'changed-row':'';
 
-    const isFixed = infoFixed[code] !== false;
-    const lockChk = `<input type="checkbox" ${isFixed?'checked':''} title="🔒 Fijo: escala con el batch. Sin check: cantidad libre."
-      style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;display:block;margin:auto"
-      onchange="infoFixed['${code}']=this.checked">`;
     if(editMode){
       return `<tr class="${rowClass}">
-        <td style="text-align:center">${lockChk}</td>
         <td class="td-radio"><input type="radio" class="pin-radio" name="pin-ing" value="${code}" ${pinnedIngredient===code?'checked':''} onchange="setPinned('${code}')"></td>
         <td class="font-mono" style="font-size:10px">${code}</td>
         <td style="font-size:12px">${rm.description||code}${isAdded?'<span style="font-size:10px;color:var(--accent);margin-left:4px">[nuevo]</span>':isChanged?'<span class="qty-changed-dot"></span>':''}</td>
@@ -926,10 +919,9 @@ function renderRecipeTable(){
         <td><button style="border:none;background:none;cursor:pointer;color:var(--danger);font-size:13px;padding:2px 4px" onclick="removeIngredient('${code}')" title="Eliminar">✕</button></td>
       </tr>`;
     }else{
-      return `<tr ${!isFixed?'style="background:#fffbeb"':''}>
-        <td style="text-align:center">${lockChk}</td>
+      return `<tr>
         <td class="font-mono" style="font-size:10px">${code}</td>
-        <td style="font-size:12px">${rm.description||code}${!isFixed?'<span style="font-size:9px;color:var(--warn);margin-left:4px">libre</span>':''}</td>
+        <td style="font-size:12px">${rm.description||code}</td>
         <td>${matBadge(rm.material)}</td>
         <td style="text-align:right">${rm.brix>0?rm.brix+'°':'—'}</td>
         <td>${rm.unit||'—'}</td>
@@ -1813,7 +1805,7 @@ function selectProduct(code){
   if(editMode&&hasEdits()&&!confirm('Hay cambios sin guardar. ¿Descartar?'))return;
   currentProduct=DB.products.find(p=>p.code===code);
   if(!currentProduct)return;
-  cancelEdits();pinnedIngredient=null;infoFixed={};
+  cancelEdits();pinnedIngredient=null;
   renderList();renderInfo();renderCalc();
   // Update active tab
   const activeTab=document.querySelector('.tab.active');
@@ -1902,10 +1894,24 @@ async function loadFromServer() {
         }
       });
 
+      // Normalize raw materials: map UPPERCASE fields, extract brix from description
+      const normalizedRawMats = (rawMaterials || []).map(r => {
+        const desc = r.DESCRIPTION || r.description || '';
+        const brixMatch = desc.match(/(\d+\.?\d*)\s*(?:Bx|Brix)/i);
+        const brix = brixMatch ? parseFloat(brixMatch[1]) : 0;
+        return {
+          code: String(r.CODE !== undefined ? r.CODE : (r.code || '')),
+          description: desc,
+          material: r.MATERIAL || r.material || '',
+          unit: r.UM || r.unit || '',
+          brix: brix,
+        };
+      });
+
       // DB must have a .products array
-      DB = { products: normalizedItems, rawMaterials: rawMaterials };
+      DB = { products: normalizedItems, rawMaterials: normalizedRawMats };
       rmMap = {};
-      (rawMaterials || []).forEach(r => { if(r.CODE) rmMap[String(r.CODE)] = r; });
+      normalizedRawMats.forEach(r => { if(r.code) rmMap[String(r.code)] = r; });
       recipeMap = {};
       renderList();
       document.getElementById('loading').style.display = 'none';
